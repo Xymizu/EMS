@@ -7,6 +7,7 @@ import type {
   CreateProjectInput,
   UpdateProjectInput,
 } from '../modules/project/project.types.js';
+import type { AddProjectMemberInput } from '../modules/project-member/project-member.types.js';
 
 declare global {
   namespace Express {
@@ -22,6 +23,8 @@ declare global {
       validatedProjectCreate?: CreateProjectInput;
       validatedProjectUpdate?: UpdateProjectInput;
       validatedProjectId?: string;
+      validatedProjectMemberAdd?: AddProjectMemberInput;
+      validatedMemberEmployeeId?: string;
     }
   }
 }

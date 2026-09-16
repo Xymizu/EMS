@@ -19,6 +19,10 @@ import { createProjectController } from './modules/project/project.controller.js
 import { createProjectRepository } from './modules/project/project.repository.js';
 import { createProjectRouter } from './modules/project/project.routes.js';
 import { createProjectService } from './modules/project/project.service.js';
+import { createProjectMemberController } from './modules/project-member/project-member.controller.js';
+import { createProjectMemberRepository } from './modules/project-member/project-member.repository.js';
+import { createProjectMemberRouter } from './modules/project-member/project-member.routes.js';
+import { createProjectMemberService } from './modules/project-member/project-member.service.js';
 
 export interface ApplicationOptions {
   pool?: Pool;
@@ -46,6 +50,13 @@ export function createApp(options: ApplicationOptions = {}): Express {
     employeeRepository,
   );
   const projectController = createProjectController(projectService);
+  const projectMemberService = createProjectMemberService(
+    createProjectMemberRepository(pool),
+    employeeRepository,
+  );
+  const projectMemberController = createProjectMemberController(
+    projectMemberService,
+  );
   const authenticate = createAuthenticateMiddleware(tokenService);
 
   const app = express();
@@ -65,6 +76,10 @@ export function createApp(options: ApplicationOptions = {}): Express {
   app.use(
     '/projects',
     createProjectRouter(projectController, authenticate),
+  );
+  app.use(
+    '/projects',
+    createProjectMemberRouter(projectMemberController, authenticate),
   );
   app.use(notFoundHandler);
   app.use(errorHandler);

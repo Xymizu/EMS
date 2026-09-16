@@ -15,6 +15,12 @@ import {
   ProjectHasDependenciesError,
   ProjectNotFoundError,
 } from '../modules/project/project.errors.js';
+import {
+  ProjectLeadCannotBeRemovedError,
+  ProjectMemberAlreadyExistsError,
+  ProjectMemberHasActiveTasksError,
+  ProjectMemberNotFoundError,
+} from '../modules/project-member/project-member.errors.js';
 
 export const notFoundHandler: RequestHandler = (_request, response) => {
   response.status(404).json({
@@ -84,6 +90,16 @@ export const errorHandler: ErrorRequestHandler = (
     return;
   }
 
+  if (error instanceof ProjectMemberNotFoundError) {
+    response.status(404).json({
+      error: {
+        code: 'PROJECT_MEMBER_NOT_FOUND',
+        message: 'Project member not found',
+      },
+    });
+    return;
+  }
+
   if (error instanceof EmailAlreadyExistsError) {
     response.status(409).json({
       error: { code: 'EMAIL_ALREADY_EXISTS', message: 'Email already exists' },
@@ -96,6 +112,36 @@ export const errorHandler: ErrorRequestHandler = (
       error: {
         code: 'PROJECT_HAS_DEPENDENCIES',
         message: 'Project cannot be deleted while it has members or tasks',
+      },
+    });
+    return;
+  }
+
+  if (error instanceof ProjectMemberAlreadyExistsError) {
+    response.status(409).json({
+      error: {
+        code: 'PROJECT_MEMBER_ALREADY_EXISTS',
+        message: 'Employee is already a project member',
+      },
+    });
+    return;
+  }
+
+  if (error instanceof ProjectLeadCannotBeRemovedError) {
+    response.status(409).json({
+      error: {
+        code: 'PROJECT_LEAD_CANNOT_BE_REMOVED',
+        message: 'Project lead cannot be removed from project members',
+      },
+    });
+    return;
+  }
+
+  if (error instanceof ProjectMemberHasActiveTasksError) {
+    response.status(409).json({
+      error: {
+        code: 'PROJECT_MEMBER_HAS_ACTIVE_TASKS',
+        message: 'Project member still has active tasks',
       },
     });
     return;

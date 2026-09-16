@@ -11,7 +11,7 @@ import type {
   EmployeeRole,
 } from './employee.types.js';
 
-interface EmployeeRow extends RowDataPacket {
+export interface EmployeeRow extends RowDataPacket {
   employee_id: string;
   user_id: string;
   nama: string;
@@ -47,7 +47,7 @@ const EMPLOYEE_SELECT = `SELECT
 FROM employees AS e
 INNER JOIN users AS u ON u.user_id = e.user_id`;
 
-function mapEmployee(row: EmployeeRow): EmployeeResponse {
+export function mapEmployee(row: EmployeeRow): EmployeeResponse {
   return {
     employeeId: row.employee_id,
     userId: row.user_id,
