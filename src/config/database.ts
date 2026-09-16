@@ -39,6 +39,7 @@ export function getServerConfig(): ConnectionOptions {
     user: requiredEnvironmentVariable('DB_USER'),
     password,
     charset: 'utf8mb4',
+    dateStrings: true,
     supportBigNumbers: true,
     bigNumberStrings: true,
   };
