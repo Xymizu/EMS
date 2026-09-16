@@ -10,6 +10,7 @@ import type {
 import type { AddProjectMemberInput } from '../modules/project-member/project-member.types.js';
 import type {
   CreateTaskInput,
+  TaskStatus,
   UpdateTaskInput,
 } from '../modules/task/task.types.js';
 
@@ -32,6 +33,7 @@ declare global {
       validatedTaskId?: string;
       validatedTaskCreate?: CreateTaskInput;
       validatedTaskUpdate?: UpdateTaskInput;
+      validatedTaskStatus?: TaskStatus;
     }
   }
 }

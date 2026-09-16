@@ -6,12 +6,18 @@ import type {
 } from 'mysql2/promise';
 
 import { mapEmployee, type EmployeeRow } from '../employee/employee.repository.js';
+import type { EmployeeRole } from '../employee/employee.types.js';
+import {
+  canTransitionTaskStatus,
+  canUpdateTaskStatus,
+} from './task-status.policy.js';
 import type {
   CreateTaskResult,
   TaskRepository,
   TaskResponse,
   TaskStatus,
   UpdateTaskResult,
+  UpdateTaskStatusResult,
 } from './task.types.js';
 
 interface TaskRow extends EmployeeRow {
@@ -25,6 +31,16 @@ interface TaskRow extends EmployeeRow {
 interface ExistingRow extends RowDataPacket { exists_value: number; }
 interface ProjectIdRow extends RowDataPacket { project_id: string; }
 interface IdRow extends RowDataPacket { id: string; }
+interface StatusProjectRow extends RowDataPacket { lead_employee_id: string; }
+interface StatusTaskRow extends RowDataPacket {
+  project_id: string;
+  assigned_employee_id: string;
+  status: TaskStatus;
+}
+interface ActorRow extends RowDataPacket {
+  employee_id: string;
+  role: EmployeeRole;
+}
 
 const TASK_SELECT = `SELECT
   t.task_id,
@@ -106,7 +122,9 @@ async function loadTask(
   return mapTask(row);
 }
 
-async function rollbackResult<T extends CreateTaskResult | UpdateTaskResult>(
+async function rollbackResult<
+  T extends CreateTaskResult | UpdateTaskResult | UpdateTaskStatusResult,
+>(
   connection: PoolConnection,
   result: T,
 ): Promise<T> {
@@ -243,6 +261,77 @@ export function createTaskRepository(pool: Pool): TaskRepository {
         await connection.execute<ResultSetHeader>(
           `UPDATE tasks SET ${clauses.join(', ')} WHERE task_id = ?`,
           [...values, taskId],
+        );
+        const task = await loadTask(connection, taskId);
+        await connection.commit();
+        return { status: 'ok', task };
+      } catch (error: unknown) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    },
+
+    async updateStatus(actorUserId, taskId, targetStatus) {
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        const [initialRows] = await connection.execute<ProjectIdRow[]>(
+          `SELECT CAST(project_id AS CHAR) AS project_id
+           FROM tasks WHERE task_id = ? LIMIT 1`,
+          [taskId],
+        );
+        const initial = initialRows[0];
+        if (!initial) {
+          return await rollbackResult(connection, { status: 'task-not-found' });
+        }
+        const [projectRows] = await connection.execute<StatusProjectRow[]>(
+          `SELECT CAST(lead_employee_id AS CHAR) AS lead_employee_id
+           FROM projects WHERE project_id = ? FOR UPDATE`,
+          [initial.project_id],
+        );
+        const project = projectRows[0];
+        if (!project) {
+          return await rollbackResult(connection, { status: 'task-not-found' });
+        }
+        const [taskRows] = await connection.execute<StatusTaskRow[]>(
+          `SELECT
+             CAST(project_id AS CHAR) AS project_id,
+             CAST(assigned_employee_id AS CHAR) AS assigned_employee_id,
+             status
+           FROM tasks WHERE task_id = ? FOR UPDATE`,
+          [taskId],
+        );
+        const target = taskRows[0];
+        if (!target) {
+          return await rollbackResult(connection, { status: 'task-not-found' });
+        }
+        const [actorRows] = await connection.execute<ActorRow[]>(
+          `SELECT
+             CAST(employee_id AS CHAR) AS employee_id,
+             role
+           FROM employees WHERE user_id = ? LOCK IN SHARE MODE`,
+          [actorUserId],
+        );
+        const actor = actorRows[0];
+        if (!actor) {
+          return await rollbackResult(connection, { status: 'actor-not-employee' });
+        }
+        if (!canUpdateTaskStatus({
+          actorEmployeeId: actor.employee_id,
+          actorRole: actor.role,
+          assignedEmployeeId: target.assigned_employee_id,
+          leadEmployeeId: project.lead_employee_id,
+        })) {
+          return await rollbackResult(connection, { status: 'forbidden' });
+        }
+        if (!canTransitionTaskStatus(target.status, targetStatus)) {
+          return await rollbackResult(connection, { status: 'invalid-transition' });
+        }
+        await connection.execute<ResultSetHeader>(
+          `UPDATE tasks SET status = ? WHERE task_id = ?`,
+          [targetStatus, taskId],
         );
         const task = await loadTask(connection, taskId);
         await connection.commit();

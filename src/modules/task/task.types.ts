@@ -23,6 +23,13 @@ export interface UpdateTaskInput {
   assignedEmployeeId?: string;
 }
 
+export type UpdateTaskStatusResult =
+  | { status: 'ok'; task: TaskResponse }
+  | { status: 'task-not-found' }
+  | { status: 'actor-not-employee' }
+  | { status: 'forbidden' }
+  | { status: 'invalid-transition' };
+
 export type TaskListResult =
   | { status: 'ok'; tasks: TaskResponse[] }
   | { status: 'project-not-found' };
@@ -44,5 +51,10 @@ export interface TaskRepository {
   findAllByProjectId(projectId: string): Promise<TaskListResult>;
   findById(taskId: string): Promise<TaskResponse | null>;
   update(taskId: string, input: UpdateTaskInput): Promise<UpdateTaskResult>;
+  updateStatus(
+    actorUserId: string,
+    taskId: string,
+    targetStatus: TaskStatus,
+  ): Promise<UpdateTaskStatusResult>;
   delete(taskId: string): Promise<boolean>;
 }

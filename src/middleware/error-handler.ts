@@ -23,6 +23,7 @@ import {
 } from '../modules/project-member/project-member.errors.js';
 import {
   AssigneeNotProjectMemberError,
+  InvalidTaskStatusTransitionError,
   TaskNotFoundError,
 } from '../modules/task/task.errors.js';
 
@@ -51,6 +52,16 @@ export const errorHandler: ErrorRequestHandler = (
       error: {
         code: 'ASSIGNEE_NOT_PROJECT_MEMBER',
         message: 'Assignee must be a project member',
+      },
+    });
+    return;
+  }
+
+  if (error instanceof InvalidTaskStatusTransitionError) {
+    response.status(400).json({
+      error: {
+        code: 'INVALID_TASK_STATUS_TRANSITION',
+        message: 'Invalid task status transition',
       },
     });
     return;

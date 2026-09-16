@@ -224,6 +224,25 @@ curl -X POST http://localhost:3000/projects/1/tasks \
 
 Employee yang tersedia tetapi bukan project member menghasilkan `400 ASSIGNEE_NOT_PROJECT_MEMBER`. PATCH ini tidak menerima `project_id` atau `status`; perubahan status task mempunyai endpoint dan aturan transisi terpisah.
 
+### Mengubah status task
+
+Assignee dapat mengubah status task miliknya. Project lead dapat mengubah task pada project yang dipimpinnya, sedangkan Admin dan Super Admin dapat mengubah seluruh task.
+
+```bash
+curl -X PATCH http://localhost:3000/tasks/7/status \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"IN_PROGRESS"}'
+```
+
+Transition yang diperbolehkan:
+
+```text
+TODO <-> IN_PROGRESS <-> DONE
+```
+
+Transisi langsung `TODO` ke `DONE`, `DONE` ke `TODO`, dan update ke status yang sama menghasilkan `400 INVALID_TASK_STATUS_TRANSITION`. Staff yang bukan assignee dan lead dari project lain menghasilkan `403 FORBIDDEN`.
+
 ## Pemeriksaan project
 
 ```bash

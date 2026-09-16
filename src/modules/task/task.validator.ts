@@ -1,10 +1,15 @@
 import { ValidationError } from '../auth/auth.errors.js';
 import { validateEmployeeId } from '../employee/employee.validator.js';
 import { validateProjectId } from '../project/project.validator.js';
-import type { CreateTaskInput, UpdateTaskInput } from './task.types.js';
+import type {
+  CreateTaskInput,
+  TaskStatus,
+  UpdateTaskInput,
+} from './task.types.js';
 
 const ID_PATTERN = /^[1-9]\d*$/;
 const FIELDS = new Set(['nama_task', 'assigned_employee_id']);
+const TASK_STATUSES = new Set<TaskStatus>(['TODO', 'IN_PROGRESS', 'DONE']);
 
 function objectInput(body: unknown): Record<string, unknown> {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
@@ -58,4 +63,17 @@ export function validateUpdateTask(body: unknown): UpdateTaskInput {
   }
   if (Object.keys(output).length === 0) throw new ValidationError();
   return output;
+}
+
+export function validateTaskStatusUpdate(body: unknown): TaskStatus {
+  const input = objectInput(body);
+  if (
+    Object.keys(input).length !== 1 ||
+    !Object.hasOwn(input, 'status') ||
+    typeof input.status !== 'string' ||
+    !TASK_STATUSES.has(input.status as TaskStatus)
+  ) {
+    throw new ValidationError();
+  }
+  return input.status as TaskStatus;
 }
