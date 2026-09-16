@@ -39,6 +39,7 @@ export interface AuthRepository {
 
 export interface PasswordService {
   compare(plainPassword: string, passwordHash: string): Promise<boolean>;
+  hash(plainPassword: string): Promise<string>;
 }
 
 export interface TokenService {
