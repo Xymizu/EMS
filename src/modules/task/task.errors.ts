@@ -11,3 +11,10 @@ export class AssigneeNotProjectMemberError extends Error {
     this.name = 'AssigneeNotProjectMemberError';
   }
 }
+
+export class InvalidTaskStatusTransitionError extends Error {
+  constructor() {
+    super('Invalid task status transition');
+    this.name = 'InvalidTaskStatusTransitionError';
+  }
+}

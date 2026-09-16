@@ -13,6 +13,7 @@ export interface TaskController {
   findAllByProjectId: RequestHandler;
   findById: RequestHandler;
   update: RequestHandler;
+  updateStatus: RequestHandler;
   delete: RequestHandler;
 }
 
@@ -55,6 +56,18 @@ export function createTaskController(service: TaskService): TaskController {
         identity(request),
         request.validatedTaskId,
         request.validatedTaskUpdate,
+      );
+      response.status(200).json({ data: { task } });
+    },
+
+    async updateStatus(request, response) {
+      if (!request.validatedTaskId || !request.validatedTaskStatus) {
+        throw new Error('Update task status input missing');
+      }
+      const task = await service.updateStatus(
+        identity(request),
+        request.validatedTaskId,
+        request.validatedTaskStatus,
       );
       response.status(200).json({ data: { task } });
     },

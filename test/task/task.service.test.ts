@@ -27,6 +27,7 @@ function repository(): TaskRepository {
     async findAllByProjectId() { return { status: 'ok', tasks: [task] }; },
     async findById() { return task; },
     async update() { return { status: 'ok', task }; },
+    async updateStatus() { return { status: 'ok', task }; },
     async delete() { return true; },
   };
 }
@@ -93,4 +94,30 @@ test('service maps missing detail, update outcomes, and delete target', async ()
   );
   target.delete = async () => false;
   await assert.rejects(service.delete('1', '1'), TaskNotFoundError);
+});
+
+test('service maps status update outcomes and rejects user without employee early', async () => {
+  const target = repository();
+  const service = createTaskService(target, roles('ADMIN'));
+  target.updateStatus = async () => ({ status: 'task-not-found' });
+  await assert.rejects(service.updateStatus('1', '1', 'IN_PROGRESS'), TaskNotFoundError);
+  target.updateStatus = async () => ({ status: 'forbidden' });
+  await assert.rejects(service.updateStatus('1', '1', 'IN_PROGRESS'), ForbiddenError);
+  target.updateStatus = async () => ({ status: 'invalid-transition' });
+  await assert.rejects(
+    service.updateStatus('1', '1', 'IN_PROGRESS'),
+    (error: unknown) => (error as Error).name === 'InvalidTaskStatusTransitionError',
+  );
+
+  let called = false;
+  target.updateStatus = async () => {
+    called = true;
+    return { status: 'task-not-found' };
+  };
+  const noEmployeeService = createTaskService(target, roles(null));
+  await assert.rejects(
+    noEmployeeService.updateStatus('1', '999', 'IN_PROGRESS'),
+    ForbiddenError,
+  );
+  assert.equal(called, false);
 });

@@ -3,6 +3,7 @@ import type { EmployeeRepository } from '../employee/employee.types.js';
 import { ProjectNotFoundError } from '../project/project.errors.js';
 import {
   AssigneeNotProjectMemberError,
+  InvalidTaskStatusTransitionError,
   TaskNotFoundError,
 } from './task.errors.js';
 import type {
@@ -10,6 +11,7 @@ import type {
   TaskRepository,
   TaskResponse,
   UpdateTaskInput,
+  TaskStatus,
 } from './task.types.js';
 
 type RoleRepository = Pick<EmployeeRepository, 'findActorRoleByUserId'>;
@@ -26,6 +28,11 @@ export interface TaskService {
     actorUserId: string,
     taskId: string,
     input: UpdateTaskInput,
+  ): Promise<TaskResponse>;
+  updateStatus(
+    actorUserId: string,
+    taskId: string,
+    status: TaskStatus,
   ): Promise<TaskResponse>;
   delete(actorUserId: string, taskId: string): Promise<void>;
 }
@@ -72,6 +79,20 @@ export function createTaskService(
       if (result.status === 'employee-not-found') throw new EmployeeNotFoundError();
       if (result.status === 'assignee-not-project-member') {
         throw new AssigneeNotProjectMemberError();
+      }
+      return result.task;
+    },
+
+    async updateStatus(actorUserId, taskId, status) {
+      const actorRole = await roleRepository.findActorRoleByUserId(actorUserId);
+      if (!actorRole) throw new ForbiddenError();
+      const result = await repository.updateStatus(actorUserId, taskId, status);
+      if (result.status === 'task-not-found') throw new TaskNotFoundError();
+      if (result.status === 'actor-not-employee' || result.status === 'forbidden') {
+        throw new ForbiddenError();
+      }
+      if (result.status === 'invalid-transition') {
+        throw new InvalidTaskStatusTransitionError();
       }
       return result.task;
     },

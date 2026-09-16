@@ -5,6 +5,7 @@ import { ValidationError } from '../../src/modules/auth/auth.errors.js';
 import {
   validateCreateTask,
   validateTaskId,
+  validateTaskStatusUpdate,
   validateUpdateTask,
 } from '../../src/modules/task/task.validator.js';
 
@@ -54,5 +55,25 @@ test('task ID only accepts positive integer strings', () => {
   assert.equal(validateTaskId('123'), '123');
   for (const input of ['', '0', '-1', '1.5', 'abc']) {
     assert.throws(() => validateTaskId(input), ValidationError);
+  }
+});
+
+test('status update validator accepts exact enum and rejects malformed bodies', () => {
+  for (const status of ['TODO', 'IN_PROGRESS', 'DONE'] as const) {
+    assert.equal(validateTaskStatusUpdate({ status }), status);
+  }
+  const invalid: unknown[] = [
+    null,
+    [],
+    {},
+    { status: null },
+    { status: 1 },
+    { status: 'done' },
+    { status: ' DONE ' },
+    { status: 'CANCELLED' },
+    { status: 'DONE', ignored: true },
+  ];
+  for (const body of invalid) {
+    assert.throws(() => validateTaskStatusUpdate(body), ValidationError);
   }
 });

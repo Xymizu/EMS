@@ -5,6 +5,7 @@ import {
   validateCreateTask,
   validateProjectId,
   validateTaskId,
+  validateTaskStatusUpdate,
   validateUpdateTask,
 } from './task.validator.js';
 
@@ -40,6 +41,13 @@ const validateUpdate: RequestHandler = (request, _response, next) => {
   } catch (error: unknown) { next(error); }
 };
 
+const validateStatusUpdate: RequestHandler = (request, _response, next) => {
+  try {
+    request.validatedTaskStatus = validateTaskStatusUpdate(request.body);
+    next();
+  } catch (error: unknown) { next(error); }
+};
+
 export function createProjectTaskRouter(
   controller: TaskController,
   authenticate: RequestHandler,
@@ -67,6 +75,13 @@ export function createTaskRouter(
 ): Router {
   const router = Router();
   router.get('/:taskId', authenticate, validateId, controller.findById);
+  router.patch(
+    '/:taskId/status',
+    authenticate,
+    validateId,
+    validateStatusUpdate,
+    controller.updateStatus,
+  );
   router.patch(
     '/:taskId',
     authenticate,
