@@ -21,6 +21,10 @@ import {
   ProjectMemberHasActiveTasksError,
   ProjectMemberNotFoundError,
 } from '../modules/project-member/project-member.errors.js';
+import {
+  AssigneeNotProjectMemberError,
+  TaskNotFoundError,
+} from '../modules/task/task.errors.js';
 
 export const notFoundHandler: RequestHandler = (_request, response) => {
   response.status(404).json({
@@ -38,6 +42,16 @@ export const errorHandler: ErrorRequestHandler = (
   if (error instanceof ValidationError || isMalformedJsonError(error)) {
     response.status(400).json({
       error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
+    });
+    return;
+  }
+
+  if (error instanceof AssigneeNotProjectMemberError) {
+    response.status(400).json({
+      error: {
+        code: 'ASSIGNEE_NOT_PROJECT_MEMBER',
+        message: 'Assignee must be a project member',
+      },
     });
     return;
   }
@@ -96,6 +110,13 @@ export const errorHandler: ErrorRequestHandler = (
         code: 'PROJECT_MEMBER_NOT_FOUND',
         message: 'Project member not found',
       },
+    });
+    return;
+  }
+
+  if (error instanceof TaskNotFoundError) {
+    response.status(404).json({
+      error: { code: 'TASK_NOT_FOUND', message: 'Task not found' },
     });
     return;
   }

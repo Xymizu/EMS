@@ -203,6 +203,27 @@ curl -X POST http://localhost:3000/projects/1/members \
 
 Project dan employee harus tersedia. Membership duplikat menghasilkan `409 PROJECT_MEMBER_ALREADY_EXISTS`. Lead project dan member yang memiliki task `TODO` atau `IN_PROGRESS` tidak dapat dihapus. Menghapus membership tidak menghapus employee, project, atau task.
 
+## Task Management
+
+Admin dan Super Admin dapat mengelola task. Assignee wajib merupakan member dari project task tersebut.
+
+| Method | Endpoint | Kegunaan |
+|---|---|---|
+| `POST` | `/projects/:projectId/tasks` | Membuat task berstatus `TODO` |
+| `GET` | `/projects/:projectId/tasks` | Melihat seluruh task project |
+| `GET` | `/tasks/:taskId` | Melihat detail task |
+| `PATCH` | `/tasks/:taskId` | Mengubah nama dan/atau assignee |
+| `DELETE` | `/tasks/:taskId` | Menghapus task |
+
+```bash
+curl -X POST http://localhost:3000/projects/1/tasks \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"nama_task":"Membuat halaman login","assigned_employee_id":"2"}'
+```
+
+Employee yang tersedia tetapi bukan project member menghasilkan `400 ASSIGNEE_NOT_PROJECT_MEMBER`. PATCH ini tidak menerima `project_id` atau `status`; perubahan status task mempunyai endpoint dan aturan transisi terpisah.
+
 ## Pemeriksaan project
 
 ```bash

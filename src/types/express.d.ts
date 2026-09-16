@@ -8,6 +8,10 @@ import type {
   UpdateProjectInput,
 } from '../modules/project/project.types.js';
 import type { AddProjectMemberInput } from '../modules/project-member/project-member.types.js';
+import type {
+  CreateTaskInput,
+  UpdateTaskInput,
+} from '../modules/task/task.types.js';
 
 declare global {
   namespace Express {
@@ -25,6 +29,9 @@ declare global {
       validatedProjectId?: string;
       validatedProjectMemberAdd?: AddProjectMemberInput;
       validatedMemberEmployeeId?: string;
+      validatedTaskId?: string;
+      validatedTaskCreate?: CreateTaskInput;
+      validatedTaskUpdate?: UpdateTaskInput;
     }
   }
 }

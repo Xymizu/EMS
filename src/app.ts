@@ -23,6 +23,13 @@ import { createProjectMemberController } from './modules/project-member/project-
 import { createProjectMemberRepository } from './modules/project-member/project-member.repository.js';
 import { createProjectMemberRouter } from './modules/project-member/project-member.routes.js';
 import { createProjectMemberService } from './modules/project-member/project-member.service.js';
+import { createTaskController } from './modules/task/task.controller.js';
+import { createTaskRepository } from './modules/task/task.repository.js';
+import {
+  createProjectTaskRouter,
+  createTaskRouter,
+} from './modules/task/task.routes.js';
+import { createTaskService } from './modules/task/task.service.js';
 
 export interface ApplicationOptions {
   pool?: Pool;
@@ -57,6 +64,11 @@ export function createApp(options: ApplicationOptions = {}): Express {
   const projectMemberController = createProjectMemberController(
     projectMemberService,
   );
+  const taskService = createTaskService(
+    createTaskRepository(pool),
+    employeeRepository,
+  );
+  const taskController = createTaskController(taskService);
   const authenticate = createAuthenticateMiddleware(tokenService);
 
   const app = express();
@@ -81,6 +93,11 @@ export function createApp(options: ApplicationOptions = {}): Express {
     '/projects',
     createProjectMemberRouter(projectMemberController, authenticate),
   );
+  app.use(
+    '/projects',
+    createProjectTaskRouter(taskController, authenticate),
+  );
+  app.use('/tasks', createTaskRouter(taskController, authenticate));
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
