@@ -184,6 +184,25 @@ curl -X POST http://localhost:3000/projects \
 
 `lead_employee_id` harus menunjuk employee yang tersedia. Mengubah lead tidak mengubah `project_members`. Project yang masih memiliki member atau task tidak dihapus dan menghasilkan `409 PROJECT_HAS_DEPENDENCIES`.
 
+## Project Members
+
+Admin dan Super Admin dapat mengelola relasi many-to-many antara project dan employee.
+
+| Method | Endpoint | Kegunaan |
+|---|---|---|
+| `GET` | `/projects/:projectId/members` | Melihat member project |
+| `POST` | `/projects/:projectId/members` | Menambahkan satu employee |
+| `DELETE` | `/projects/:projectId/members/:employeeId` | Menghapus membership |
+
+```bash
+curl -X POST http://localhost:3000/projects/1/members \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"employee_id":"2"}'
+```
+
+Project dan employee harus tersedia. Membership duplikat menghasilkan `409 PROJECT_MEMBER_ALREADY_EXISTS`. Lead project dan member yang memiliki task `TODO` atau `IN_PROGRESS` tidak dapat dihapus. Menghapus membership tidak menghapus employee, project, atau task.
+
 ## Pemeriksaan project
 
 ```bash
