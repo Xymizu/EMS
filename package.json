@@ -1,0 +1,29 @@
+{
+  "name": "ems",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:setup": "tsx scripts/setup-databases.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:rollback": "tsx scripts/rollback.ts",
+    "test": "npm run test:db",
+    "test:db": "node --import tsx --test --test-concurrency=1 test/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "mysql2": "^3.24.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.3",
+    "eslint": "^10.10.0",
+    "tsx": "^4.23.13",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.0"
+  }
+}
