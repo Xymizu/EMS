@@ -1,0 +1,61 @@
+import type { ErrorRequestHandler, RequestHandler } from 'express';
+
+import {
+  InvalidCredentialsError,
+  UnauthorizedError,
+  ValidationError,
+} from '../modules/auth/auth.errors.js';
+
+export const notFoundHandler: RequestHandler = (_request, response) => {
+  response.status(404).json({
+    error: { code: 'NOT_FOUND', message: 'Resource not found' },
+  });
+};
+
+export const errorHandler: ErrorRequestHandler = (
+  error: unknown,
+  _request,
+  response,
+  next,
+) => {
+  void next;
+  if (error instanceof ValidationError || isMalformedJsonError(error)) {
+    response.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
+    });
+    return;
+  }
+
+  if (error instanceof InvalidCredentialsError) {
+    response.status(401).json({
+      error: {
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password',
+      },
+    });
+    return;
+  }
+
+  if (error instanceof UnauthorizedError) {
+    response.status(401).json({
+      error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+    });
+    return;
+  }
+
+  console.error(
+    'Unhandled request error:',
+    error instanceof Error ? error.message : 'Unknown error',
+  );
+  response.status(500).json({
+    error: { code: 'INTERNAL_SERVER_ERROR', message: 'Internal server error' },
+  });
+};
+
+function isMalformedJsonError(error: unknown): boolean {
+  return (
+    error instanceof SyntaxError &&
+    'status' in error &&
+    (error as SyntaxError & { status?: number }).status === 400
+  );
+}

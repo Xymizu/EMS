@@ -1,6 +1,6 @@
 # Employee Management System
 
-Fondasi database V1 untuk Employee Management System. Implementasi saat ini hanya mencakup schema MySQL, migration, dan database integration test sesuai issue #1.
+Backend V1 Employee Management System dengan schema MySQL dan authentication JWT access token.
 
 ## Kebutuhan
 
@@ -26,6 +26,11 @@ Variabel yang digunakan:
 | `DB_PASSWORD_IS_EMPTY` | Isi `true` untuk memaksa password kosong, termasuk bila sistem memiliki `DB_PASSWORD` global |
 | `DB_NAME` | Database development |
 | `TEST_DB_NAME` | Database khusus integration test; harus berbeda dari `DB_NAME` |
+| `JWT_SECRET` | Secret JWT minimum 32 karakter; gunakan nilai acak dan jangan commit secret asli |
+| `JWT_ACCESS_TOKEN_TTL_SECONDS` | Masa berlaku access token dalam detik; contoh `900` |
+| `JWT_ISSUER` | Issuer JWT; gunakan `ems-api` |
+| `JWT_AUDIENCE` | Audience JWT; gunakan `ems-client` |
+| `PORT` | Port HTTP API; default `3000` |
 
 ## Menjalankan MySQL lokal
 
@@ -66,3 +71,56 @@ npm run lint
 ```
 
 Jangan arahkan `TEST_DB_NAME` ke database development atau production. Test menolak berjalan bila `TEST_DB_NAME` sama dengan `DB_NAME`.
+
+## Menjalankan API
+
+Pastikan migration sudah diterapkan dan `JWT_SECRET` pada `.env` berisi nilai acak minimum 32 karakter, kemudian jalankan:
+
+```bash
+npm run dev
+```
+
+Untuk menjalankan tanpa file watcher:
+
+```bash
+npm start
+```
+
+### Login
+
+User harus sudah tersedia di tabel `users` dengan `password_hash` bcrypt.
+
+```bash
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"user-password"}'
+```
+
+Response sukses berisi `accessToken`, `tokenType: "Bearer"`, dan `expiresIn`. Credential yang salah selalu menghasilkan pesan generik dan response tidak pernah memuat `password_hash`.
+
+### Current user
+
+```bash
+curl http://localhost:3000/auth/me \
+  -H "Authorization: Bearer <token>"
+```
+
+Endpoint mengembalikan data user beserta employee yang terhubung. Nilai `employee` adalah `null` bila user belum mempunyai employee.
+
+### Logout
+
+```bash
+curl -X POST http://localhost:3000/auth/logout \
+  -H "Authorization: Bearer <token>"
+```
+
+Logout V1 bersifat stateless. Server tidak menyimpan session atau blacklist; client harus menghapus access token. Token tetap valid secara cryptographic sampai waktu expiration.
+
+## Pemeriksaan project
+
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm audit --audit-level=high
+```
