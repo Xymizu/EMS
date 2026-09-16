@@ -1,4 +1,8 @@
 import type { AuthenticatedIdentity } from '../modules/auth/auth.types.js';
+import type {
+  CreateEmployeeInput,
+  UpdateEmployeeInput,
+} from '../modules/employee/employee.types.js';
 
 declare global {
   namespace Express {
@@ -8,6 +12,9 @@ declare global {
         email: string;
         password: string;
       };
+      validatedEmployeeCreate?: CreateEmployeeInput;
+      validatedEmployeeUpdate?: UpdateEmployeeInput;
+      validatedEmployeeId?: string;
     }
   }
 }

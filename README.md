@@ -116,6 +116,51 @@ curl -X POST http://localhost:3000/auth/logout \
 
 Logout V1 bersifat stateless. Server tidak menyimpan session atau blacklist; client harus menghapus access token. Token tetap valid secara cryptographic sampai waktu expiration.
 
+## Employee Management
+
+Semua endpoint berikut memerlukan `Authorization: Bearer <token>` dari user dengan role `ADMIN` atau `SUPER_ADMIN`. Role diperiksa dari database pada setiap operasi.
+
+| Method | Endpoint | Kegunaan |
+|---|---|---|
+| `POST` | `/employees` | Membuat user dan employee |
+| `GET` | `/employees` | Melihat daftar employee |
+| `GET` | `/employees/:employeeId` | Melihat detail employee |
+| `PATCH` | `/employees/:employeeId` | Mengubah sebagian data employee |
+
+### Membuat employee
+
+```bash
+curl -X POST http://localhost:3000/employees \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"nama":"Budi Santoso","email":"budi@example.com","password":"Password123!","tanggal_masuk":"2026-09-16","role":"STAFF"}'
+```
+
+Pembuatan user dan employee berlangsung dalam satu transaction. Email duplikat menghasilkan `409 EMAIL_ALREADY_EXISTS`; password di-hash dengan bcrypt dan tidak pernah dikirim pada response.
+
+### List dan detail
+
+```bash
+curl http://localhost:3000/employees \
+  -H "Authorization: Bearer <admin-token>"
+
+curl http://localhost:3000/employees/12 \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+### Partial update
+
+```bash
+curl -X PATCH http://localhost:3000/employees/12 \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"nama":"Budi Setiawan","role":"ADMIN"}'
+```
+
+Field yang dapat diubah adalah `nama`, `email`, `password`, `tanggal_masuk`, dan `role`. Body kosong menghasilkan `400 VALIDATION_ERROR`. Target yang tidak ada menghasilkan `404 EMPLOYEE_NOT_FOUND`, sedangkan user non-admin mendapat `403 FORBIDDEN`.
+
+Database baru memerlukan provisioning Admin pertama melalui proses operasional/seed tepercaya. API tidak menyediakan endpoint bootstrap tanpa authentication. V1 juga belum mencegah Admin menurunkan role dirinya sendiri atau Admin terakhir.
+
 ## Pemeriksaan project
 
 ```bash

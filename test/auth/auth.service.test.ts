@@ -41,6 +41,9 @@ test('auth service returns credentials for a valid login', async () => {
       assert.equal(hash, 'stored-hash');
       return true;
     },
+    async hash(password) {
+      return password;
+    },
   };
   const service = createAuthService(repository, passwordService, tokenService);
 
@@ -62,6 +65,9 @@ test('unknown email and wrong password produce the same domain error', async (su
     async compare(_password, hash) {
       passwordInputs.push(hash);
       return false;
+    },
+    async hash(password) {
+      return password;
     },
   };
 
@@ -133,6 +139,9 @@ test('auth service returns current user and rejects a missing user', async () =>
   const passwordService: PasswordService = {
     async compare() {
       return false;
+    },
+    async hash(password) {
+      return password;
     },
   };
   const service = createAuthService(repository, passwordService, tokenService);

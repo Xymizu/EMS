@@ -5,6 +5,11 @@ import {
   UnauthorizedError,
   ValidationError,
 } from '../modules/auth/auth.errors.js';
+import {
+  EmailAlreadyExistsError,
+  EmployeeNotFoundError,
+  ForbiddenError,
+} from '../modules/employee/employee.errors.js';
 
 export const notFoundHandler: RequestHandler = (_request, response) => {
   response.status(404).json({
@@ -39,6 +44,27 @@ export const errorHandler: ErrorRequestHandler = (
   if (error instanceof UnauthorizedError) {
     response.status(401).json({
       error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+    });
+    return;
+  }
+
+  if (error instanceof ForbiddenError) {
+    response.status(403).json({
+      error: { code: 'FORBIDDEN', message: 'Insufficient permissions' },
+    });
+    return;
+  }
+
+  if (error instanceof EmployeeNotFoundError) {
+    response.status(404).json({
+      error: { code: 'EMPLOYEE_NOT_FOUND', message: 'Employee not found' },
+    });
+    return;
+  }
+
+  if (error instanceof EmailAlreadyExistsError) {
+    response.status(409).json({
+      error: { code: 'EMAIL_ALREADY_EXISTS', message: 'Email already exists' },
     });
     return;
   }
