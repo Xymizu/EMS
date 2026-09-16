@@ -15,6 +15,10 @@ import { createEmployeeController } from './modules/employee/employee.controller
 import { createEmployeeRepository } from './modules/employee/employee.repository.js';
 import { createEmployeeRouter } from './modules/employee/employee.routes.js';
 import { createEmployeeService } from './modules/employee/employee.service.js';
+import { createProjectController } from './modules/project/project.controller.js';
+import { createProjectRepository } from './modules/project/project.repository.js';
+import { createProjectRouter } from './modules/project/project.routes.js';
+import { createProjectService } from './modules/project/project.service.js';
 
 export interface ApplicationOptions {
   pool?: Pool;
@@ -34,11 +38,14 @@ export function createApp(options: ApplicationOptions = {}): Express {
     tokenService,
   );
   const controller = createAuthController(service);
-  const employeeService = createEmployeeService(
-    createEmployeeRepository(pool),
-    passwordService,
-  );
+  const employeeRepository = createEmployeeRepository(pool);
+  const employeeService = createEmployeeService(employeeRepository, passwordService);
   const employeeController = createEmployeeController(employeeService);
+  const projectService = createProjectService(
+    createProjectRepository(pool),
+    employeeRepository,
+  );
+  const projectController = createProjectController(projectService);
   const authenticate = createAuthenticateMiddleware(tokenService);
 
   const app = express();
@@ -54,6 +61,10 @@ export function createApp(options: ApplicationOptions = {}): Express {
   app.use(
     '/employees',
     createEmployeeRouter(employeeController, authenticate),
+  );
+  app.use(
+    '/projects',
+    createProjectRouter(projectController, authenticate),
   );
   app.use(notFoundHandler);
   app.use(errorHandler);

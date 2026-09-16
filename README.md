@@ -161,6 +161,29 @@ Field yang dapat diubah adalah `nama`, `email`, `password`, `tanggal_masuk`, dan
 
 Database baru memerlukan provisioning Admin pertama melalui proses operasional/seed tepercaya. API tidak menyediakan endpoint bootstrap tanpa authentication. V1 juga belum mencegah Admin menurunkan role dirinya sendiri atau Admin terakhir.
 
+## Project Management
+
+Seluruh endpoint project memerlukan token milik employee dengan role `ADMIN` atau `SUPER_ADMIN`.
+
+| Method | Endpoint | Kegunaan |
+|---|---|---|
+| `POST` | `/projects` | Membuat project dan memilih employee lead |
+| `GET` | `/projects` | Melihat seluruh project beserta lead |
+| `GET` | `/projects/:projectId` | Melihat detail project |
+| `PATCH` | `/projects/:projectId` | Mengganti nama dan/atau lead |
+| `DELETE` | `/projects/:projectId` | Menghapus project tanpa dependency |
+
+Contoh membuat project:
+
+```bash
+curl -X POST http://localhost:3000/projects \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"nama_project":"Employee Management System","lead_employee_id":"2"}'
+```
+
+`lead_employee_id` harus menunjuk employee yang tersedia. Mengubah lead tidak mengubah `project_members`. Project yang masih memiliki member atau task tidak dihapus dan menghasilkan `409 PROJECT_HAS_DEPENDENCIES`.
+
 ## Pemeriksaan project
 
 ```bash

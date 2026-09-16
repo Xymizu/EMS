@@ -10,6 +10,11 @@ import {
   EmployeeNotFoundError,
   ForbiddenError,
 } from '../modules/employee/employee.errors.js';
+import {
+  LeadEmployeeNotFoundError,
+  ProjectHasDependenciesError,
+  ProjectNotFoundError,
+} from '../modules/project/project.errors.js';
 
 export const notFoundHandler: RequestHandler = (_request, response) => {
   response.status(404).json({
@@ -62,9 +67,36 @@ export const errorHandler: ErrorRequestHandler = (
     return;
   }
 
+  if (error instanceof ProjectNotFoundError) {
+    response.status(404).json({
+      error: { code: 'PROJECT_NOT_FOUND', message: 'Project not found' },
+    });
+    return;
+  }
+
+  if (error instanceof LeadEmployeeNotFoundError) {
+    response.status(404).json({
+      error: {
+        code: 'LEAD_EMPLOYEE_NOT_FOUND',
+        message: 'Lead employee not found',
+      },
+    });
+    return;
+  }
+
   if (error instanceof EmailAlreadyExistsError) {
     response.status(409).json({
       error: { code: 'EMAIL_ALREADY_EXISTS', message: 'Email already exists' },
+    });
+    return;
+  }
+
+  if (error instanceof ProjectHasDependenciesError) {
+    response.status(409).json({
+      error: {
+        code: 'PROJECT_HAS_DEPENDENCIES',
+        message: 'Project cannot be deleted while it has members or tasks',
+      },
     });
     return;
   }
