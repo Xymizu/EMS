@@ -9,8 +9,8 @@
     "db:setup": "tsx scripts/setup-databases.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:rollback": "tsx scripts/rollback.ts",
-    "test": "node --import tsx --test --test-concurrency=1 test/**/*.test.ts",
-    "test:db": "node --import tsx --test --test-concurrency=1 test/**/*.test.ts",
+    "test": "node --import tsx --test --test-concurrency=1 tests/**/*.test.ts",
+    "test:db": "node --import tsx --test --test-concurrency=1 tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
