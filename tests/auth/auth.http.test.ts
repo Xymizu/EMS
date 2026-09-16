@@ -93,6 +93,10 @@ test('authentication HTTP API', async (suite) => {
   const app = createApp({ pool, jwtConfig });
   const tokenService = createTokenService(jwtConfig);
 
+  suite.beforeEach(async () => {
+    await clearData(pool);
+  });
+
   try {
     await suite.test('login returns a valid access token', async () => {
       await clearData(pool);

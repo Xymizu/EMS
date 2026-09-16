@@ -95,6 +95,10 @@ test('task status HTTP API', async (suite) => {
   const app = createApp({ pool, jwtConfig, passwordHashRounds: 4 });
   const tokenService = createTokenService(jwtConfig);
 
+  suite.beforeEach(async () => {
+    await clearData(pool);
+  });
+
   try {
     await suite.test('requires authentication and validates request strictly', async () => {
       const unauthenticated = await request(app)

@@ -70,6 +70,10 @@ test('project member HTTP API', async (suite) => {
   const app = createApp({ pool, jwtConfig, passwordHashRounds: 4 });
   const tokenService = createTokenService(jwtConfig);
 
+  suite.beforeEach(async () => {
+    await clearData(pool);
+  });
+
   try {
     await suite.test('all endpoints require authentication', async () => {
       const responses = await Promise.all([
