@@ -1,4 +1,8 @@
 import { ForbiddenError } from '../employee/employee.errors.js';
+import {
+  DEFAULT_PAGINATION,
+  type Pagination,
+} from '../../http/pagination.js';
 import type { EmployeeRepository } from '../employee/employee.types.js';
 import {
   LeadEmployeeNotFoundError,
@@ -15,7 +19,7 @@ type RoleRepository = Pick<EmployeeRepository, 'findActorRoleByUserId'>;
 
 export interface ProjectService {
   create(actorUserId: string, input: CreateProjectInput): Promise<ProjectResponse>;
-  findAll(actorUserId: string): Promise<ProjectResponse[]>;
+  findAll(actorUserId: string, pagination?: Pagination): Promise<ProjectResponse[]>;
   findById(actorUserId: string, projectId: string): Promise<ProjectResponse>;
   update(
     actorUserId: string,
@@ -42,14 +46,21 @@ export function createProjectService(
       return project;
     },
 
-    async findAll(actorUserId) {
-      await assertCanManageProjects(actorUserId);
-      return repository.findAll();
+    async findAll(actorUserId, pagination = DEFAULT_PAGINATION) {
+      const role = await roleRepository.findActorRoleByUserId(actorUserId);
+      if (!role) throw new ForbiddenError();
+      if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+        return repository.findAll(pagination);
+      }
+      return repository.findAllAccessibleByUserId(actorUserId, pagination);
     },
 
     async findById(actorUserId, projectId) {
-      await assertCanManageProjects(actorUserId);
-      const project = await repository.findById(projectId);
+      const role = await roleRepository.findActorRoleByUserId(actorUserId);
+      if (!role) throw new ForbiddenError();
+      const project = role === 'ADMIN' || role === 'SUPER_ADMIN'
+        ? await repository.findById(projectId)
+        : await repository.findAccessibleById(actorUserId, projectId);
       if (!project) throw new ProjectNotFoundError();
       return project;
     },

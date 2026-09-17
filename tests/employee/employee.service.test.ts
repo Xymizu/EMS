@@ -91,3 +91,34 @@ test('update only hashes when password is present and maps missing target', asyn
   );
   assert.equal(hashes, 1);
 });
+
+test('role hierarchy prevents Admin escalation and self role changes', async () => {
+  const adminRepository = repositoryFor('ADMIN');
+  const adminService = createEmployeeService(adminRepository, passwordService);
+  await assert.rejects(
+    adminService.create('1', {
+      nama: 'Root',
+      email: 'root@example.com',
+      password: 'Password123!',
+      tanggalMasuk: '2026-01-01',
+      role: 'SUPER_ADMIN',
+    }),
+    ForbiddenError,
+  );
+  await assert.rejects(
+    adminService.update('1', '2', { role: 'SUPER_ADMIN' }),
+    ForbiddenError,
+  );
+
+  const selfRepository = repositoryFor('SUPER_ADMIN');
+  selfRepository.findById = async () => ({
+    ...employee,
+    userId: '1',
+    role: 'SUPER_ADMIN',
+  });
+  const superAdminService = createEmployeeService(selfRepository, passwordService);
+  await assert.rejects(
+    superAdminService.update('1', '2', { role: 'ADMIN' }),
+    ForbiddenError,
+  );
+});

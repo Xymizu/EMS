@@ -16,6 +16,7 @@ export function createAuthController(service: AuthService): AuthController {
         throw new Error('Validated login input is missing');
       }
       const credentials = await service.login(request.validatedLogin);
+      response.setHeader('Cache-Control', 'no-store');
       response.status(200).json({ data: credentials });
     },
 
@@ -24,6 +25,7 @@ export function createAuthController(service: AuthService): AuthController {
         throw new UnauthorizedError();
       }
       const user = await service.getCurrentUser(request.auth.userId);
+      response.setHeader('Cache-Control', 'no-store');
       response.status(200).json({ data: { user } });
     },
 

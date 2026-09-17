@@ -5,6 +5,12 @@ import { parseJwtConfig, type JwtConfig } from './config/jwt.js';
 import { getApplicationPool } from './database/pool.js';
 import { createAuthenticateMiddleware } from './middleware/authenticate.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
+import {
+  createRateLimitMiddleware,
+  securityHeaders,
+  type RateLimitOptions,
+} from './middleware/security.js';
+import { requestLogger } from './middleware/request-logger.js';
 import { createAuthController } from './modules/auth/auth.controller.js';
 import { createAuthRepository } from './modules/auth/auth.repository.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
@@ -35,6 +41,7 @@ export interface ApplicationOptions {
   pool?: Pool;
   jwtConfig?: JwtConfig;
   passwordHashRounds?: number;
+  authRateLimit?: RateLimitOptions | false;
 }
 
 export function createApp(options: ApplicationOptions = {}): Express {
@@ -70,15 +77,35 @@ export function createApp(options: ApplicationOptions = {}): Express {
   );
   const taskController = createTaskController(taskService);
   const authenticate = createAuthenticateMiddleware(tokenService);
+  const authRateLimit = options.authRateLimit === false
+    ? undefined
+    : createRateLimitMiddleware(options.authRateLimit ?? {
+        windowMs: 60_000,
+        maxRequests: 10,
+      });
 
   const app = express();
   app.disable('x-powered-by');
+  if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 1);
+  app.use(securityHeaders);
+  if (process.env.NODE_ENV === 'production') app.use(requestLogger);
   app.use(express.json({ limit: '16kb' }));
+  app.get('/health', async (_request, response) => {
+    try {
+      await pool.query('SELECT 1');
+      response.status(200).json({ data: { status: 'ok' } });
+    } catch {
+      response.status(503).json({
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Service unavailable' },
+      });
+    }
+  });
   app.use(
     '/auth',
     createAuthRouter(
       controller,
       authenticate,
+      authRateLimit,
     ),
   );
   app.use(

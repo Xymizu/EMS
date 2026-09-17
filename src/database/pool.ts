@@ -8,7 +8,16 @@ export function getApplicationPool(): Pool {
   applicationPool ??= mysql.createPool({
     ...getDatabaseConfig(),
     connectionLimit: 10,
-    queueLimit: 0,
+    queueLimit: 100,
+    connectTimeout: 10_000,
+    enableKeepAlive: true,
   });
   return applicationPool;
+}
+
+export async function closeApplicationPool(): Promise<void> {
+  if (!applicationPool) return;
+  const pool = applicationPool;
+  applicationPool = undefined;
+  await pool.end();
 }

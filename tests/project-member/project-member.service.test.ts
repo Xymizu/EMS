@@ -6,7 +6,7 @@ import type { EmployeeRepository, EmployeeResponse, EmployeeRole } from '../../s
 import {
   ProjectLeadCannotBeRemovedError,
   ProjectMemberAlreadyExistsError,
-  ProjectMemberHasActiveTasksError,
+  ProjectMemberHasTasksError,
   ProjectMemberNotFoundError,
 } from '../../src/modules/project-member/project-member.errors.js';
 import { createProjectMemberService } from '../../src/modules/project-member/project-member.service.js';
@@ -70,7 +70,7 @@ test('service maps every remove repository outcome', async () => {
     ['employee-not-found', EmployeeNotFoundError],
     ['member-not-found', ProjectMemberNotFoundError],
     ['lead-cannot-be-removed', ProjectLeadCannotBeRemovedError],
-    ['has-active-tasks', ProjectMemberHasActiveTasksError],
+    ['has-tasks', ProjectMemberHasTasksError],
   ] as const;
   for (const [status, ErrorType] of cases) {
     target.remove = async () => ({ status });

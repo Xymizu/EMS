@@ -9,12 +9,17 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EMPLOYEE_ID_PATTERN = /^[1-9]\d*$/;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const ROLES = new Set<EmployeeRole>(['STAFF', 'ADMIN', 'SUPER_ADMIN']);
+const FIELDS = new Set(['nama', 'email', 'password', 'tanggal_masuk', 'role']);
 
 function objectInput(body: unknown): Record<string, unknown> {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new ValidationError();
   }
-  return body as Record<string, unknown>;
+  const input = body as Record<string, unknown>;
+  if (Object.keys(input).some((field) => !FIELDS.has(field))) {
+    throw new ValidationError();
+  }
+  return input;
 }
 
 function validateNama(value: unknown): string {

@@ -36,6 +36,7 @@ export function createTaskController(service: TaskService): TaskController {
       const tasks = await service.findAllByProjectId(
         identity(request),
         request.validatedProjectId,
+        request.validatedPagination,
       );
       response.status(200).json({
         data: { projectId: request.validatedProjectId, tasks },

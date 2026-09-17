@@ -1,6 +1,7 @@
 import { Router, type RequestHandler } from 'express';
 
 import type { EmployeeController } from './employee.controller.js';
+import { validatePagination } from '../../http/pagination.js';
 import {
   validateCreateEmployee,
   validateEmployeeId,
@@ -37,13 +38,22 @@ const validateUpdate: RequestHandler = (request, _response, next) => {
   }
 };
 
+const validatePage: RequestHandler = (request, _response, next) => {
+  try {
+    request.validatedPagination = validatePagination(request.query);
+    next();
+  } catch (error: unknown) {
+    next(error);
+  }
+};
+
 export function createEmployeeRouter(
   controller: EmployeeController,
   authenticate: RequestHandler,
 ): Router {
   const router = Router();
   router.post('/', authenticate, validateCreate, controller.create);
-  router.get('/', authenticate, controller.findAll);
+  router.get('/', authenticate, validatePage, controller.findAll);
   router.get('/:employeeId', authenticate, validateId, controller.findById);
   router.patch(
     '/:employeeId',

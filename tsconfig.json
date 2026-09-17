@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts", "eslint.config.js"]
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "eslint.config.js"]
 }

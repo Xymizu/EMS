@@ -36,7 +36,9 @@ function projectRepository(): ProjectRepository {
   return {
     async create() { return project; },
     async findAll() { return [project]; },
+    async findAllAccessibleByUserId() { return [project]; },
     async findById() { return project; },
+    async findAccessibleById() { return project; },
     async update() { return project; },
     async delete() { return true; },
   };
@@ -49,18 +51,16 @@ test('Admin and Super Admin can list projects', async () => {
   }
 });
 
-test('Staff and user without employee are forbidden before target lookup', async () => {
-  for (const role of ['STAFF', null] as const) {
-    let targetLookedUp = false;
-    const repository = projectRepository();
-    repository.findById = async () => {
-      targetLookedUp = true;
-      return null;
-    };
-    const service = createProjectService(repository, roleRepository(role));
-    await assert.rejects(service.findById('1', '999'), ForbiddenError);
-    assert.equal(targetLookedUp, false);
-  }
+test('Staff can see accessible projects and user without employee is forbidden', async () => {
+  const staffService = createProjectService(
+    projectRepository(),
+    roleRepository('STAFF'),
+  );
+  assert.deepEqual(await staffService.findAll('1'), [project]);
+  assert.deepEqual(await staffService.findById('1', '1'), project);
+
+  const service = createProjectService(projectRepository(), roleRepository(null));
+  await assert.rejects(service.findById('1', '999'), ForbiddenError);
 });
 
 test('create maps a missing lead employee', async () => {

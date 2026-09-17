@@ -1,4 +1,5 @@
 import type { EmployeeResponse } from '../employee/employee.types.js';
+import type { Pagination } from '../../http/pagination.js';
 
 export interface AddProjectMemberInput {
   employeeId: string;
@@ -20,10 +21,13 @@ export type RemoveProjectMemberResult =
   | { status: 'employee-not-found' }
   | { status: 'member-not-found' }
   | { status: 'lead-cannot-be-removed' }
-  | { status: 'has-active-tasks' };
+  | { status: 'has-tasks' };
 
 export interface ProjectMemberRepository {
-  findAll(projectId: string): Promise<ProjectMemberListResult>;
+  findAll(
+    projectId: string,
+    pagination: Pagination,
+  ): Promise<ProjectMemberListResult>;
   add(projectId: string, employeeId: string): Promise<AddProjectMemberResult>;
   remove(
     projectId: string,

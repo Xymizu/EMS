@@ -28,7 +28,10 @@ export function createProjectController(service: ProjectService): ProjectControl
     },
 
     async findAll(request, response) {
-      const projects = await service.findAll(identity(request));
+      const projects = await service.findAll(
+        identity(request),
+        request.validatedPagination,
+      );
       response.status(200).json({ data: { projects } });
     },
 

@@ -1,5 +1,10 @@
 import { EmployeeNotFoundError, ForbiddenError } from '../employee/employee.errors.js';
+import {
+  DEFAULT_PAGINATION,
+  type Pagination,
+} from '../../http/pagination.js';
 import type { EmployeeRepository } from '../employee/employee.types.js';
+import type { EmployeeRole } from '../employee/employee.types.js';
 import { ProjectNotFoundError } from '../project/project.errors.js';
 import {
   AssigneeNotProjectMemberError,
@@ -22,7 +27,11 @@ export interface TaskService {
     projectId: string,
     input: CreateTaskInput,
   ): Promise<TaskResponse>;
-  findAllByProjectId(actorUserId: string, projectId: string): Promise<TaskResponse[]>;
+  findAllByProjectId(
+    actorUserId: string,
+    projectId: string,
+    pagination?: Pagination,
+  ): Promise<TaskResponse[]>;
   findById(actorUserId: string, taskId: string): Promise<TaskResponse>;
   update(
     actorUserId: string,
@@ -41,14 +50,27 @@ export function createTaskService(
   repository: TaskRepository,
   roleRepository: RoleRepository,
 ): TaskService {
-  async function assertCanManageTasks(actorUserId: string): Promise<void> {
-    const role = await roleRepository.findActorRoleByUserId(actorUserId);
-    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') throw new ForbiddenError();
+  async function projectAccess(actorUserId: string, projectId: string) {
+    const access = await repository.findProjectAccess(actorUserId, projectId);
+    if (!access.projectExists) throw new ProjectNotFoundError();
+    return access;
+  }
+
+  async function assertCanLeadOrAdmin(
+    actorUserId: string,
+    projectId: string,
+    knownRole?: EmployeeRole,
+  ): Promise<void> {
+    const role = knownRole ?? await roleRepository.findActorRoleByUserId(actorUserId);
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN') return;
+    if (!role) throw new ForbiddenError();
+    const access = await projectAccess(actorUserId, projectId);
+    if (!access.isLead) throw new ForbiddenError();
   }
 
   return {
     async create(actorUserId, projectId, input) {
-      await assertCanManageTasks(actorUserId);
+      await assertCanLeadOrAdmin(actorUserId, projectId);
       const result = await repository.create(projectId, input);
       if (result.status === 'project-not-found') throw new ProjectNotFoundError();
       if (result.status === 'employee-not-found') throw new EmployeeNotFoundError();
@@ -58,22 +80,53 @@ export function createTaskService(
       return result.task;
     },
 
-    async findAllByProjectId(actorUserId, projectId) {
-      await assertCanManageTasks(actorUserId);
-      const result = await repository.findAllByProjectId(projectId);
+    async findAllByProjectId(
+      actorUserId,
+      projectId,
+      pagination = DEFAULT_PAGINATION,
+    ) {
+      const role = await roleRepository.findActorRoleByUserId(actorUserId);
+      if (!role) throw new ForbiddenError();
+      let assignedEmployeeId: string | undefined;
+      if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+        const access = await projectAccess(actorUserId, projectId);
+        if (!access.isLead && !access.isMember) throw new ForbiddenError();
+        if (!access.isLead) {
+          if (!access.actorEmployeeId) throw new ForbiddenError();
+          assignedEmployeeId = access.actorEmployeeId;
+        }
+      }
+      const result = await repository.findAllByProjectId(
+        projectId,
+        pagination,
+        assignedEmployeeId,
+      );
       if (result.status === 'project-not-found') throw new ProjectNotFoundError();
       return result.tasks;
     },
 
     async findById(actorUserId, taskId) {
-      await assertCanManageTasks(actorUserId);
+      const role = await roleRepository.findActorRoleByUserId(actorUserId);
+      if (!role) throw new ForbiddenError();
       const task = await repository.findById(taskId);
       if (!task) throw new TaskNotFoundError();
+      if (
+        role !== 'ADMIN' &&
+        role !== 'SUPER_ADMIN' &&
+        task.assignee.userId !== actorUserId
+      ) {
+        const access = await projectAccess(actorUserId, task.project.projectId);
+        if (!access.isLead) throw new ForbiddenError();
+      }
       return task;
     },
 
     async update(actorUserId, taskId, input) {
-      await assertCanManageTasks(actorUserId);
+      const role = await roleRepository.findActorRoleByUserId(actorUserId);
+      if (!role) throw new ForbiddenError();
+      const existing = await repository.findById(taskId);
+      if (!existing) throw new TaskNotFoundError();
+      await assertCanLeadOrAdmin(actorUserId, existing.project.projectId, role);
       const result = await repository.update(taskId, input);
       if (result.status === 'task-not-found') throw new TaskNotFoundError();
       if (result.status === 'employee-not-found') throw new EmployeeNotFoundError();
@@ -98,7 +151,11 @@ export function createTaskService(
     },
 
     async delete(actorUserId, taskId) {
-      await assertCanManageTasks(actorUserId);
+      const role = await roleRepository.findActorRoleByUserId(actorUserId);
+      if (!role) throw new ForbiddenError();
+      const existing = await repository.findById(taskId);
+      if (!existing) throw new TaskNotFoundError();
+      await assertCanLeadOrAdmin(actorUserId, existing.project.projectId, role);
       if (!await repository.delete(taskId)) throw new TaskNotFoundError();
     },
   };

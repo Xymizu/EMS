@@ -1,6 +1,14 @@
 import type { EmployeeResponse } from '../employee/employee.types.js';
+import type { Pagination } from '../../http/pagination.js';
 
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
+
+export interface ProjectTaskAccess {
+  projectExists: boolean;
+  actorEmployeeId: string | null;
+  isLead: boolean;
+  isMember: boolean;
+}
 
 export interface TaskResponse {
   taskId: string;
@@ -48,8 +56,16 @@ export type UpdateTaskResult =
 
 export interface TaskRepository {
   create(projectId: string, input: CreateTaskInput): Promise<CreateTaskResult>;
-  findAllByProjectId(projectId: string): Promise<TaskListResult>;
+  findAllByProjectId(
+    projectId: string,
+    pagination: Pagination,
+    assignedEmployeeId?: string,
+  ): Promise<TaskListResult>;
   findById(taskId: string): Promise<TaskResponse | null>;
+  findProjectAccess(
+    actorUserId: string,
+    projectId: string,
+  ): Promise<ProjectTaskAccess>;
   update(taskId: string, input: UpdateTaskInput): Promise<UpdateTaskResult>;
   updateStatus(
     actorUserId: string,

@@ -31,8 +31,11 @@ export function parseJwtConfig(
   environment: NodeJS.ProcessEnv = process.env,
 ): JwtConfig {
   const secret = requiredValue(environment, 'JWT_SECRET');
-  if (secret.length < 32) {
-    throw new Error('JWT_SECRET must contain at least 32 characters');
+  if (
+    Buffer.byteLength(secret, 'utf8') < 32 ||
+    secret === 'replace_with_at_least_32_random_characters'
+  ) {
+    throw new Error('JWT_SECRET must contain at least 32 random bytes');
   }
 
   const accessTokenTtlSeconds = Number(

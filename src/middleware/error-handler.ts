@@ -18,7 +18,7 @@ import {
 import {
   ProjectLeadCannotBeRemovedError,
   ProjectMemberAlreadyExistsError,
-  ProjectMemberHasActiveTasksError,
+  ProjectMemberHasTasksError,
   ProjectMemberNotFoundError,
 } from '../modules/project-member/project-member.errors.js';
 import {
@@ -35,11 +35,18 @@ export const notFoundHandler: RequestHandler = (_request, response) => {
 
 export const errorHandler: ErrorRequestHandler = (
   error: unknown,
-  _request,
+  request,
   response,
   next,
 ) => {
   void next;
+  if (isPayloadTooLargeError(error)) {
+    response.status(413).json({
+      error: { code: 'PAYLOAD_TOO_LARGE', message: 'Request body is too large' },
+    });
+    return;
+  }
+
   if (error instanceof ValidationError || isMalformedJsonError(error)) {
     response.status(400).json({
       error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
@@ -169,11 +176,11 @@ export const errorHandler: ErrorRequestHandler = (
     return;
   }
 
-  if (error instanceof ProjectMemberHasActiveTasksError) {
+  if (error instanceof ProjectMemberHasTasksError) {
     response.status(409).json({
       error: {
-        code: 'PROJECT_MEMBER_HAS_ACTIVE_TASKS',
-        message: 'Project member still has active tasks',
+        code: 'PROJECT_MEMBER_HAS_TASKS',
+        message: 'Project member still has assigned tasks',
       },
     });
     return;
@@ -181,6 +188,7 @@ export const errorHandler: ErrorRequestHandler = (
 
   console.error(
     'Unhandled request error:',
+    request.requestId ?? 'no-request-id',
     error instanceof Error ? error.message : 'Unknown error',
   );
   response.status(500).json({
@@ -193,5 +201,13 @@ function isMalformedJsonError(error: unknown): boolean {
     error instanceof SyntaxError &&
     'status' in error &&
     (error as SyntaxError & { status?: number }).status === 400
+  );
+}
+
+function isPayloadTooLargeError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'status' in error &&
+    (error as Error & { status?: number }).status === 413
   );
 }

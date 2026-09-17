@@ -51,6 +51,18 @@ async function seedEmployee(
   return { userId, employeeId: String(employee.insertId) };
 }
 
+async function seedProject(
+  pool: Pool,
+  leadEmployeeId: string,
+  name: string,
+): Promise<string> {
+  const [project] = await pool.execute<ResultSetHeader>(
+    'INSERT INTO projects (nama_project, lead_employee_id) VALUES (?, ?)',
+    [name, leadEmployeeId],
+  );
+  return String(project.insertId);
+}
+
 test('project management HTTP API', async (suite) => {
   await executeMigration('down', true);
   await executeMigration('up', true);
@@ -77,23 +89,52 @@ test('project management HTTP API', async (suite) => {
       }
     });
 
-    await suite.test('Staff is forbidden before project lookup', async () => {
+    await suite.test('Staff can list accessible projects but cannot manage them', async () => {
       await clearData(pool);
       const actor = await seedEmployee(pool, 'STAFF', 'actor');
       const token = await tokenService.sign({ userId: actor.userId });
       const authorization = { authorization: `Bearer ${token}` };
-      const responses = await Promise.all([
+      const denied = await Promise.all([
         request(app).post('/projects').set(authorization)
           .send({ nama_project: 'EMS', lead_employee_id: actor.employeeId }),
-        request(app).get('/projects').set(authorization),
-        request(app).get('/projects/999').set(authorization),
         request(app).patch('/projects/999').set(authorization).send({ nama_project: 'New' }),
         request(app).delete('/projects/999').set(authorization),
       ]);
-      for (const response of responses) {
+      for (const response of denied) {
         assert.equal(response.status, 403);
         assert.equal(response.body.error.code, 'FORBIDDEN');
       }
+      const list = await request(app).get('/projects').set(authorization);
+      assert.equal(list.status, 200);
+      assert.deepEqual(list.body, { data: { projects: [] } });
+      const missing = await request(app).get('/projects/999').set(authorization);
+      assert.equal(missing.status, 404);
+      assert.equal(missing.body.error.code, 'PROJECT_NOT_FOUND');
+    });
+
+    await suite.test('Staff sees only projects they lead or joined', async () => {
+      await clearData(pool);
+      const actor = await seedEmployee(pool, 'STAFF', 'viewer');
+      const otherLead = await seedEmployee(pool, 'STAFF', 'other-lead');
+      const ledProject = await seedProject(pool, actor.employeeId, 'Led');
+      const joinedProject = await seedProject(pool, otherLead.employeeId, 'Joined');
+      const hiddenProject = await seedProject(pool, otherLead.employeeId, 'Hidden');
+      await pool.execute(
+        'INSERT INTO project_members (project_id, employee_id) VALUES (?, ?)',
+        [joinedProject, actor.employeeId],
+      );
+      const token = await tokenService.sign({ userId: actor.userId });
+      const auth = { authorization: `Bearer ${token}` };
+
+      const list = await request(app).get('/projects').set(auth);
+      assert.equal(list.status, 200);
+      assert.deepEqual(
+        list.body.data.projects.map((item: { projectId: string }) => item.projectId),
+        [ledProject, joinedProject],
+      );
+      assert.equal((await request(app).get(`/projects/${ledProject}`).set(auth)).status, 200);
+      assert.equal((await request(app).get(`/projects/${joinedProject}`).set(auth)).status, 200);
+      assert.equal((await request(app).get(`/projects/${hiddenProject}`).set(auth)).status, 404);
     });
 
     await suite.test('Admin performs create, list, detail, patch, and delete', async () => {
@@ -135,6 +176,18 @@ test('project management HTTP API', async (suite) => {
         BigInt(list.body.data.projects[0].projectId) <
           BigInt(list.body.data.projects[1].projectId),
       );
+      const paged = await request(app)
+        .get('/projects?limit=1&offset=1')
+        .set(authorization);
+      assert.equal(paged.status, 200);
+      assert.deepEqual(
+        paged.body.data.projects.map((item: { projectId: string }) => item.projectId),
+        [second.body.data.project.projectId],
+      );
+      const invalidPage = await request(app)
+        .get('/projects?limit=101')
+        .set(authorization);
+      assert.equal(invalidPage.status, 400);
 
       const detail = await request(app).get(`/projects/${projectId}`).set(authorization);
       assert.equal(detail.status, 200);

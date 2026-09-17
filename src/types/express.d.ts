@@ -1,4 +1,5 @@
 import type { AuthenticatedIdentity } from '../modules/auth/auth.types.js';
+import type { Pagination } from '../http/pagination.js';
 import type {
   CreateEmployeeInput,
   UpdateEmployeeInput,
@@ -18,6 +19,8 @@ declare global {
   namespace Express {
     interface Request {
       auth?: AuthenticatedIdentity;
+      requestId?: string;
+      validatedPagination?: Pagination;
       validatedLogin?: {
         email: string;
         password: string;
