@@ -187,7 +187,7 @@ test('employee management HTTP API', async (suite) => {
 
     await suite.test('patch updates fields and password without exposing its hash', async () => {
       await clearData(pool);
-      const actor = await seedActor(pool, 'ADMIN');
+      const actor = await seedActor(pool, 'SUPER_ADMIN');
       const token = await tokenService.sign({ userId: actor.userId });
       const created = await request(app)
         .post('/employees').set('authorization', `Bearer ${token}`).send(createBody);
@@ -198,7 +198,7 @@ test('employee management HTTP API', async (suite) => {
         .set('authorization', `Bearer ${token}`)
         .send({
           nama: 'Budi Updated', email: 'updated@example.com', password: newPassword,
-          tanggal_masuk: '2026-10-01', role: 'ADMIN', ignored: 'value',
+          tanggal_masuk: '2026-10-01', role: 'ADMIN',
         });
       assert.equal(response.status, 200);
       assert.deepEqual(response.body.data.employee, {

@@ -19,9 +19,9 @@ export class ProjectLeadCannotBeRemovedError extends Error {
   }
 }
 
-export class ProjectMemberHasActiveTasksError extends Error {
+export class ProjectMemberHasTasksError extends Error {
   constructor() {
-    super('Project member still has active tasks');
-    this.name = 'ProjectMemberHasActiveTasksError';
+    super('Project member still has assigned tasks');
+    this.name = 'ProjectMemberHasTasksError';
   }
 }

@@ -212,7 +212,7 @@ test('project member HTTP API', async (suite) => {
       assert.equal(counts[0]?.count, '1');
     });
 
-    await suite.test('delete protects lead and members with active tasks', async () => {
+    await suite.test('delete protects lead and members with assigned tasks', async () => {
       await clearData(pool);
       const actor = await seedEmployee(pool, 'ADMIN', 'actor');
       const lead = await seedEmployee(pool, 'STAFF', 'lead');
@@ -238,7 +238,7 @@ test('project member HTTP API', async (suite) => {
       const activeDelete = await request(app)
         .delete(`/projects/${projectId}/members/${member.employeeId}`).set(auth);
       assert.equal(activeDelete.status, 409);
-      assert.equal(activeDelete.body.error.code, 'PROJECT_MEMBER_HAS_ACTIVE_TASKS');
+      assert.equal(activeDelete.body.error.code, 'PROJECT_MEMBER_HAS_TASKS');
 
       await pool.execute('UPDATE tasks SET status = ? WHERE task_id = ?', [
         'IN_PROGRESS', String(task.insertId),
@@ -248,7 +248,7 @@ test('project member HTTP API', async (suite) => {
       assert.equal(inProgressDelete.status, 409);
       assert.equal(
         inProgressDelete.body.error.code,
-        'PROJECT_MEMBER_HAS_ACTIVE_TASKS',
+        'PROJECT_MEMBER_HAS_TASKS',
       );
 
       await pool.execute('UPDATE tasks SET status = ? WHERE task_id = ?', [
@@ -256,12 +256,19 @@ test('project member HTTP API', async (suite) => {
       ]);
       const doneDelete = await request(app)
         .delete(`/projects/${projectId}/members/${member.employeeId}`).set(auth);
-      assert.equal(doneDelete.status, 204);
+      assert.equal(doneDelete.status, 409);
+      assert.equal(doneDelete.body.error.code, 'PROJECT_MEMBER_HAS_TASKS');
       const [tasks] = await pool.execute<CountRow[]>(
         'SELECT COUNT(*) AS count FROM tasks WHERE task_id = ?',
         [String(task.insertId)],
       );
       assert.equal(tasks[0]?.count, '1');
+      const [memberships] = await pool.execute<CountRow[]>(
+        `SELECT COUNT(*) AS count FROM project_members
+         WHERE project_id = ? AND employee_id = ?`,
+        [projectId, member.employeeId],
+      );
+      assert.equal(memberships[0]?.count, '1');
     });
   } finally {
     await clearData(pool);

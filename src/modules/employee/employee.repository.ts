@@ -120,9 +120,10 @@ export function createEmployeeRepository(pool: Pool): EmployeeRepository {
       }
     },
 
-    async findAll() {
+    async findAll(pagination) {
       const [rows] = await pool.query<EmployeeRow[]>(
-        `${EMPLOYEE_SELECT} ORDER BY e.employee_id ASC`,
+        `${EMPLOYEE_SELECT} ORDER BY e.employee_id ASC LIMIT ? OFFSET ?`,
+        [pagination.limit, pagination.offset],
       );
       return rows.map(mapEmployee);
     },

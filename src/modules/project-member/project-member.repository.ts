@@ -63,7 +63,7 @@ export function createProjectMemberRepository(
   pool: Pool,
 ): ProjectMemberRepository {
   return {
-    async findAll(projectId) {
+    async findAll(projectId, pagination) {
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
@@ -74,8 +74,9 @@ export function createProjectMemberRepository(
         const [rows] = await connection.execute<EmployeeRow[]>(
           `${MEMBER_SELECT}
            WHERE pm.project_id = ?
-           ORDER BY e.employee_id ASC`,
-          [projectId],
+           ORDER BY e.employee_id ASC
+           LIMIT ? OFFSET ?`,
+          [projectId, pagination.limit, pagination.offset],
         );
         await connection.commit();
         return { status: 'ok', members: rows.map(mapEmployee) };
@@ -162,17 +163,16 @@ export function createProjectMemberRepository(
           connection,
           { status: 'lead-cannot-be-removed' },
         );
-        const [activeTasks] = await connection.execute<ExistingRow[]>(
+        const [assignedTasks] = await connection.execute<ExistingRow[]>(
           `SELECT 1 AS exists_value FROM tasks
            WHERE project_id = ?
              AND assigned_employee_id = ?
-             AND status IN ('TODO', 'IN_PROGRESS')
            LIMIT 1 FOR UPDATE`,
           [projectId, employeeId],
         );
-        if (activeTasks.length > 0) return await rollbackResult(
+        if (assignedTasks.length > 0) return await rollbackResult(
           connection,
-          { status: 'has-active-tasks' },
+          { status: 'has-tasks' },
         );
         await connection.execute<ResultSetHeader>(
           `DELETE FROM project_members WHERE project_id = ? AND employee_id = ?`,

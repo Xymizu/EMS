@@ -282,6 +282,37 @@ test('authentication HTTP API', async (suite) => {
         .set('authorization', `Bearer ${token}`);
       assert.equal(stillValid.status, 200);
     });
+
+    await suite.test('security headers, body limit, and login rate limit are enforced', async () => {
+      const limitedApp = createApp({
+        pool,
+        jwtConfig,
+        authRateLimit: { windowMs: 60_000, maxRequests: 2 },
+      });
+      const missing = await request(limitedApp).get('/missing');
+      assert.equal(missing.headers['x-content-type-options'], 'nosniff');
+      assert.equal(missing.headers['x-frame-options'], 'DENY');
+      assert.match(missing.headers['content-security-policy'] ?? '', /default-src/);
+
+      const oversized = await request(limitedApp)
+        .post('/auth/login')
+        .set('content-type', 'application/json')
+        .send(JSON.stringify({
+          email: 'large@example.com',
+          password: 'x'.repeat(17_000),
+        }));
+      assert.equal(oversized.status, 413);
+      assert.equal(oversized.body.error.code, 'PAYLOAD_TOO_LARGE');
+
+      const first = await request(limitedApp).post('/auth/login').send({});
+      const second = await request(limitedApp).post('/auth/login').send({});
+      const blocked = await request(limitedApp).post('/auth/login').send({});
+      assert.equal(first.status, 400);
+      assert.equal(second.status, 400);
+      assert.equal(blocked.status, 429);
+      assert.equal(blocked.body.error.code, 'RATE_LIMITED');
+      assert.ok(blocked.headers['retry-after']);
+    });
   } finally {
     await clearData(pool);
     await pool.end();

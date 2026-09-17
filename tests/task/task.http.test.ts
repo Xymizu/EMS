@@ -94,7 +94,7 @@ test('task management HTTP API', async (suite) => {
       }
     });
 
-    await suite.test('Staff is forbidden before target lookup', async () => {
+    await suite.test('Staff receives not found for missing task resources', async () => {
       await clearData(pool);
       const actor = await seedEmployee(pool, 'STAFF', 'actor');
       const token = await tokenService.sign({ userId: actor.userId });
@@ -108,9 +108,55 @@ test('task management HTTP API', async (suite) => {
         request(app).delete('/tasks/999').set(auth),
       ]);
       for (const response of responses) {
-        assert.equal(response.status, 403);
-        assert.equal(response.body.error.code, 'FORBIDDEN');
+        assert.equal(response.status, 404);
       }
+    });
+
+    await suite.test('project Lead manages tasks and Staff reads only assigned tasks', async () => {
+      await clearData(pool);
+      const lead = await seedEmployee(pool, 'STAFF', 'lead-access');
+      const member = await seedEmployee(pool, 'STAFF', 'member-access');
+      const outsider = await seedEmployee(pool, 'STAFF', 'outsider-access');
+      const projectId = await seedProject(pool, lead.employeeId, 'Lead Project');
+      await addMember(pool, projectId, member.employeeId);
+      const leadToken = await tokenService.sign({ userId: lead.userId });
+      const memberToken = await tokenService.sign({ userId: member.userId });
+      const outsiderToken = await tokenService.sign({ userId: outsider.userId });
+      const leadAuth = { authorization: `Bearer ${leadToken}` };
+      const memberAuth = { authorization: `Bearer ${memberToken}` };
+      const outsiderAuth = { authorization: `Bearer ${outsiderToken}` };
+
+      const created = await request(app).post(`/projects/${projectId}/tasks`)
+        .set(leadAuth)
+        .send({ nama_task: 'Lead-created', assigned_employee_id: member.employeeId });
+      assert.equal(created.status, 201);
+      const taskId = created.body.data.task.taskId;
+
+      const memberList = await request(app)
+        .get(`/projects/${projectId}/tasks`)
+        .set(memberAuth);
+      assert.equal(memberList.status, 200);
+      assert.deepEqual(
+        memberList.body.data.tasks.map((item: { taskId: string }) => item.taskId),
+        [taskId],
+      );
+      assert.equal((await request(app).get(`/tasks/${taskId}`).set(memberAuth)).status, 200);
+      assert.equal((await request(app).get(`/tasks/${taskId}`).set(outsiderAuth)).status, 403);
+      assert.equal(
+        (await request(app).get(`/projects/${projectId}/tasks`).set(outsiderAuth)).status,
+        403,
+      );
+
+      const updated = await request(app).patch(`/tasks/${taskId}`)
+        .set(leadAuth)
+        .send({ nama_task: 'Updated by lead' });
+      assert.equal(updated.status, 200);
+      assert.equal(updated.body.data.task.namaTask, 'Updated by lead');
+      assert.equal(
+        (await request(app).patch(`/tasks/${taskId}`)
+          .set(memberAuth).send({ nama_task: 'Forbidden' })).status,
+        403,
+      );
     });
 
     await suite.test('Admin performs create, list, detail, patch, and delete', async () => {

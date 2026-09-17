@@ -15,10 +15,11 @@ const validateLogin: RequestHandler = (request, _response, next) => {
 export function createAuthRouter(
   controller: AuthController,
   authenticate: RequestHandler,
+  rateLimit?: RequestHandler,
 ): Router {
   const router = Router();
 
-  router.post('/login', validateLogin, controller.login);
+  router.post('/login', ...(rateLimit ? [rateLimit] : []), validateLogin, controller.login);
   router.get('/me', authenticate, controller.currentUser);
   router.post('/logout', authenticate, controller.logout);
 

@@ -1,6 +1,7 @@
 import { Router, type RequestHandler } from 'express';
 
 import type { TaskController } from './task.controller.js';
+import { validatePagination } from '../../http/pagination.js';
 import {
   validateCreateTask,
   validateProjectId,
@@ -48,6 +49,13 @@ const validateStatusUpdate: RequestHandler = (request, _response, next) => {
   } catch (error: unknown) { next(error); }
 };
 
+const validatePage: RequestHandler = (request, _response, next) => {
+  try {
+    request.validatedPagination = validatePagination(request.query);
+    next();
+  } catch (error: unknown) { next(error); }
+};
+
 export function createProjectTaskRouter(
   controller: TaskController,
   authenticate: RequestHandler,
@@ -64,6 +72,7 @@ export function createProjectTaskRouter(
     '/:projectId/tasks',
     authenticate,
     validateProject,
+    validatePage,
     controller.findAllByProjectId,
   );
   return router;

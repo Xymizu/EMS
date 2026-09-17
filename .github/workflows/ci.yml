@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-database-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-database-password --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: ems
+      DB_PASSWORD: ci-application-database-password
+      DB_PASSWORD_IS_EMPTY: "false"
+      DB_ADMIN_USER: root
+      DB_ADMIN_PASSWORD: ci-database-password
+      DB_NAME: ems
+      TEST_DB_NAME: ems_test
+      JWT_SECRET: ci-only-random-looking-secret-with-more-than-32-bytes
+      JWT_ACCESS_TOKEN_TTL_SECONDS: 900
+      JWT_ISSUER: ems-api
+      JWT_AUDIENCE: ems-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:setup
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high

@@ -29,7 +29,10 @@ export function createEmployeeController(
     },
 
     async findAll(request, response) {
-      const employees = await service.findAll(identity(request));
+      const employees = await service.findAll(
+        identity(request),
+        request.validatedPagination,
+      );
       response.status(200).json({ data: { employees } });
     },
 

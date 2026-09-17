@@ -1,6 +1,7 @@
 import { Router, type RequestHandler } from 'express';
 
 import type { ProjectMemberController } from './project-member.controller.js';
+import { validatePagination } from '../../http/pagination.js';
 import {
   validateAddProjectMember,
   validateEmployeeId,
@@ -34,6 +35,13 @@ const validateEmployee: RequestHandler = (request, _response, next) => {
   } catch (error: unknown) { next(error); }
 };
 
+const validatePage: RequestHandler = (request, _response, next) => {
+  try {
+    request.validatedPagination = validatePagination(request.query);
+    next();
+  } catch (error: unknown) { next(error); }
+};
+
 export function createProjectMemberRouter(
   controller: ProjectMemberController,
   authenticate: RequestHandler,
@@ -43,6 +51,7 @@ export function createProjectMemberRouter(
     '/:projectId/members',
     authenticate,
     validateProject,
+    validatePage,
     controller.findAll,
   );
   router.post(

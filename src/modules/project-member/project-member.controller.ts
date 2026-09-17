@@ -23,6 +23,7 @@ export function createProjectMemberController(
       const members = await service.findAll(
         identity(request),
         request.validatedProjectId,
+        request.validatedPagination,
       );
       response.status(200).json({
         data: { projectId: request.validatedProjectId, members },

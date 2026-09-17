@@ -106,9 +106,27 @@ export function createProjectRepository(pool: Pool): ProjectRepository {
       }
     },
 
-    async findAll() {
+    async findAll(pagination) {
       const [rows] = await pool.query<ProjectRow[]>(
-        `${PROJECT_SELECT} ORDER BY p.project_id ASC`,
+        `${PROJECT_SELECT} ORDER BY p.project_id ASC LIMIT ? OFFSET ?`,
+        [pagination.limit, pagination.offset],
+      );
+      return rows.map(mapProject);
+    },
+
+    async findAllAccessibleByUserId(userId, pagination) {
+      const [rows] = await pool.execute<ProjectRow[]>(
+        `${PROJECT_SELECT}
+         WHERE e.user_id = ?
+            OR EXISTS (
+              SELECT 1
+              FROM project_members AS pm
+              INNER JOIN employees AS actor ON actor.employee_id = pm.employee_id
+              WHERE pm.project_id = p.project_id AND actor.user_id = ?
+            )
+         ORDER BY p.project_id ASC
+         LIMIT ? OFFSET ?`,
+        [userId, userId, pagination.limit, pagination.offset],
       );
       return rows.map(mapProject);
     },
@@ -117,6 +135,25 @@ export function createProjectRepository(pool: Pool): ProjectRepository {
       const [rows] = await pool.execute<ProjectRow[]>(
         `${PROJECT_SELECT} WHERE p.project_id = ? LIMIT 1`,
         [projectId],
+      );
+      return rows[0] ? mapProject(rows[0]) : null;
+    },
+
+    async findAccessibleById(userId, projectId) {
+      const [rows] = await pool.execute<ProjectRow[]>(
+        `${PROJECT_SELECT}
+         WHERE p.project_id = ?
+           AND (
+             e.user_id = ?
+             OR EXISTS (
+               SELECT 1
+               FROM project_members AS pm
+               INNER JOIN employees AS actor ON actor.employee_id = pm.employee_id
+               WHERE pm.project_id = p.project_id AND actor.user_id = ?
+             )
+           )
+         LIMIT 1`,
+        [projectId, userId, userId],
       );
       return rows[0] ? mapProject(rows[0]) : null;
     },

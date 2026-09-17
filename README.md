@@ -13,7 +13,7 @@ Seluruh tabel memakai InnoDB, character set `utf8mb4`, dan collation `utf8mb4_un
 
 ## Konfigurasi
 
-Salin `.env.example` menjadi `.env`. Konfigurasi bawaan cocok untuk XAMPP lokal pada port `3306`, user `root`, dan password kosong. Jika instalasi MySQL Anda memakai password, isi `DB_PASSWORD`. Jangan commit `.env`.
+Salin `.env.example` menjadi `.env`, lalu ganti seluruh nilai `replace_with_...`. Docker hanya mempublikasikan MySQL ke `127.0.0.1` dan mewajibkan password. Jangan commit `.env`.
 
 Variabel yang digunakan:
 
@@ -22,8 +22,10 @@ Variabel yang digunakan:
 | `DB_HOST` | Host MySQL |
 | `DB_PORT` | Port MySQL |
 | `DB_USER` | User MySQL yang boleh membuat database dan tabel |
-| `DB_PASSWORD` | Password user MySQL; boleh kosong untuk XAMPP lokal |
-| `DB_PASSWORD_IS_EMPTY` | Isi `true` untuk memaksa password kosong, termasuk bila sistem memiliki `DB_PASSWORD` global |
+| `DB_PASSWORD` | Password user MySQL; wajib kecuali compatibility mode development |
+| `DB_PASSWORD_IS_EMPTY` | Compatibility mode XAMPP lokal; tidak boleh `true` pada production |
+| `DB_ADMIN_USER` | User administratif yang hanya digunakan oleh `db:setup` |
+| `DB_ADMIN_PASSWORD` | Password user administratif; tidak digunakan runtime API |
 | `DB_NAME` | Database development |
 | `TEST_DB_NAME` | Database khusus integration test; harus berbeda dari `DB_NAME` |
 | `JWT_SECRET` | Secret JWT minimum 32 karakter; gunakan nilai acak dan jangan commit secret asli |
@@ -31,6 +33,7 @@ Variabel yang digunakan:
 | `JWT_ISSUER` | Issuer JWT; gunakan `ems-api` |
 | `JWT_AUDIENCE` | Audience JWT; gunakan `ems-client` |
 | `PORT` | Port HTTP API; default `3000` |
+| `TRUST_PROXY` | Isi `true` hanya saat API berada tepat di belakang reverse proxy tepercaya |
 
 ## Menjalankan MySQL lokal
 
@@ -50,7 +53,7 @@ npm run db:setup
 npm run db:migrate
 ```
 
-`db:setup` membuat database development dan test bila belum ada. `db:migrate` membuat tabel dalam urutan `users`, `employees`, `projects`, `project_members`, lalu `tasks`.
+`db:setup` memakai kredensial admin untuk membuat database development/test dan memberikan akses kepada `DB_USER`. Runtime API hanya memakai `DB_USER`; production menolak user `root` dan password kosong. `db:migrate` membuat tabel dalam urutan `users`, `employees`, `projects`, `project_members`, lalu `tasks`.
 
 Rollback menghapus tabel dalam urutan relasi yang aman:
 
@@ -80,11 +83,16 @@ Pastikan migration sudah diterapkan dan `JWT_SECRET` pada `.env` berisi nilai ac
 npm run dev
 ```
 
-Untuk menjalankan tanpa file watcher:
+Untuk membuat dan menjalankan build production tanpa runtime TypeScript:
 
 ```bash
+npm run build
 npm start
 ```
+
+`GET /health` memeriksa koneksi database dan menghasilkan `200` atau `503`. Proses menangani `SIGINT`/`SIGTERM` dengan menutup HTTP server dan connection pool secara graceful.
+
+Semua endpoint daftar menerima query `limit` (default `50`, maksimum `100`) dan `offset` (default `0`, maksimum `1000000`). Query pagination yang tidak valid menghasilkan `400 VALIDATION_ERROR`.
 
 ### Login
 
@@ -118,7 +126,7 @@ Logout V1 bersifat stateless. Server tidak menyimpan session atau blacklist; cli
 
 ## Employee Management
 
-Semua endpoint berikut memerlukan `Authorization: Bearer <token>` dari user dengan role `ADMIN` atau `SUPER_ADMIN`. Role diperiksa dari database pada setiap operasi.
+Semua endpoint berikut memerlukan `Authorization: Bearer <token>` dari user dengan role `ADMIN` atau `SUPER_ADMIN`. Role diperiksa dari database pada setiap operasi. Hanya Super Admin yang dapat memberikan role `SUPER_ADMIN`, dan pengguna tidak dapat mengubah role dirinya sendiri.
 
 | Method | Endpoint | Kegunaan |
 |---|---|---|
@@ -163,7 +171,7 @@ Database baru memerlukan provisioning Admin pertama melalui proses operasional/s
 
 ## Project Management
 
-Seluruh endpoint project memerlukan token milik employee dengan role `ADMIN` atau `SUPER_ADMIN`.
+Operasi tulis project memerlukan role `ADMIN` atau `SUPER_ADMIN`. Staff dapat melihat project yang dipimpin atau diikutinya, tetapi project lain disembunyikan.
 
 | Method | Endpoint | Kegunaan |
 |---|---|---|
@@ -201,11 +209,11 @@ curl -X POST http://localhost:3000/projects/1/members \
   -d '{"employee_id":"2"}'
 ```
 
-Project dan employee harus tersedia. Membership duplikat menghasilkan `409 PROJECT_MEMBER_ALREADY_EXISTS`. Lead project dan member yang memiliki task `TODO` atau `IN_PROGRESS` tidak dapat dihapus. Menghapus membership tidak menghapus employee, project, atau task.
+Project dan employee harus tersedia. Membership duplikat menghasilkan `409 PROJECT_MEMBER_ALREADY_EXISTS`. Lead project dan member yang masih memiliki task dengan status apa pun tidak dapat dihapus. Menghapus membership tidak menghapus employee, project, atau task.
 
 ## Task Management
 
-Admin dan Super Admin dapat mengelola task. Assignee wajib merupakan member dari project task tersebut.
+Admin dan Super Admin dapat mengelola seluruh task. Project Lead dapat membuat, melihat, mengubah, dan menghapus task pada project yang dipimpinnya. Staff dapat melihat task yang di-assign kepadanya. Assignee wajib merupakan member dari project task tersebut.
 
 | Method | Endpoint | Kegunaan |
 |---|---|---|

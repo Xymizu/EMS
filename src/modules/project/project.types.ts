@@ -1,4 +1,5 @@
 import type { EmployeeResponse } from '../employee/employee.types.js';
+import type { Pagination } from '../../http/pagination.js';
 
 export interface ProjectResponse {
   projectId: string;
@@ -18,8 +19,16 @@ export interface UpdateProjectInput {
 
 export interface ProjectRepository {
   create(input: CreateProjectInput): Promise<ProjectResponse | null>;
-  findAll(): Promise<ProjectResponse[]>;
+  findAll(pagination: Pagination): Promise<ProjectResponse[]>;
+  findAllAccessibleByUserId(
+    userId: string,
+    pagination: Pagination,
+  ): Promise<ProjectResponse[]>;
   findById(projectId: string): Promise<ProjectResponse | null>;
+  findAccessibleById(
+    userId: string,
+    projectId: string,
+  ): Promise<ProjectResponse | null>;
   update(
     projectId: string,
     input: UpdateProjectInput,

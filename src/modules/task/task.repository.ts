@@ -18,6 +18,7 @@ import type {
   TaskStatus,
   UpdateTaskResult,
   UpdateTaskStatusResult,
+  ProjectTaskAccess,
 } from './task.types.js';
 
 interface TaskRow extends EmployeeRow {
@@ -40,6 +41,11 @@ interface StatusTaskRow extends RowDataPacket {
 interface ActorRow extends RowDataPacket {
   employee_id: string;
   role: EmployeeRole;
+}
+interface ProjectAccessRow extends RowDataPacket {
+  actor_employee_id: string | null;
+  is_lead: number;
+  is_member: number;
 }
 
 const TASK_SELECT = `SELECT
@@ -134,6 +140,39 @@ async function rollbackResult<
 
 export function createTaskRepository(pool: Pool): TaskRepository {
   return {
+    async findProjectAccess(actorUserId, projectId): Promise<ProjectTaskAccess> {
+      const [rows] = await pool.execute<ProjectAccessRow[]>(
+        `SELECT
+           CAST(actor.employee_id AS CHAR) AS actor_employee_id,
+           (p.lead_employee_id = actor.employee_id) AS is_lead,
+           EXISTS(
+             SELECT 1 FROM project_members AS pm
+             WHERE pm.project_id = p.project_id
+               AND pm.employee_id = actor.employee_id
+           ) AS is_member
+         FROM projects AS p
+         LEFT JOIN employees AS actor ON actor.user_id = ?
+         WHERE p.project_id = ?
+         LIMIT 1`,
+        [actorUserId, projectId],
+      );
+      const row = rows[0];
+      if (!row) {
+        return {
+          projectExists: false,
+          actorEmployeeId: null,
+          isLead: false,
+          isMember: false,
+        };
+      }
+      return {
+        projectExists: true,
+        actorEmployeeId: row.actor_employee_id,
+        isLead: Boolean(row.is_lead),
+        isMember: Boolean(row.is_member),
+      };
+    },
+
     async create(projectId, input) {
       const connection = await pool.getConnection();
       try {
@@ -171,7 +210,7 @@ export function createTaskRepository(pool: Pool): TaskRepository {
       }
     },
 
-    async findAllByProjectId(projectId) {
+    async findAllByProjectId(projectId, pagination, assignedEmployeeId) {
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
@@ -179,11 +218,18 @@ export function createTaskRepository(pool: Pool): TaskRepository {
           await connection.rollback();
           return { status: 'project-not-found' };
         }
+        const assigneeFilter = assignedEmployeeId === undefined
+          ? ''
+          : ' AND t.assigned_employee_id = ?';
+        const parameters = assignedEmployeeId === undefined
+          ? [projectId]
+          : [projectId, assignedEmployeeId];
         const [rows] = await connection.execute<TaskRow[]>(
           `${TASK_SELECT}
-           WHERE t.project_id = ?
-           ORDER BY t.task_id ASC`,
-          [projectId],
+           WHERE t.project_id = ?${assigneeFilter}
+           ORDER BY t.task_id ASC
+           LIMIT ? OFFSET ?`,
+          [...parameters, pagination.limit, pagination.offset],
         );
         await connection.commit();
         return { status: 'ok', tasks: rows.map(mapTask) };

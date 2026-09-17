@@ -25,6 +25,10 @@ test('JWT configuration rejects missing or invalid values', () => {
   const invalidEnvironments: NodeJS.ProcessEnv[] = [
     { ...validEnvironment, JWT_SECRET: undefined },
     { ...validEnvironment, JWT_SECRET: 'too-short' },
+    {
+      ...validEnvironment,
+      JWT_SECRET: 'replace_with_at_least_32_random_characters',
+    },
     { ...validEnvironment, JWT_ACCESS_TOKEN_TTL_SECONDS: undefined },
     { ...validEnvironment, JWT_ACCESS_TOKEN_TTL_SECONDS: '0' },
     { ...validEnvironment, JWT_ACCESS_TOKEN_TTL_SECONDS: '1.5' },

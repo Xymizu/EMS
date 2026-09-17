@@ -16,7 +16,6 @@ test('create employee validator normalizes valid input', () => {
       password: ' password ',
       tanggal_masuk: '2026-09-16',
       role: 'STAFF',
-      userId: 'ignored',
     }),
     {
       nama: 'Budi Santoso',
@@ -45,6 +44,7 @@ test('create employee validator rejects invalid fields', () => {
     { ...base, tanggal_masuk: '2026-02-30' },
     { ...base, tanggal_masuk: '16-09-2026' },
     { ...base, role: 'OWNER' },
+    { ...base, ignored: true },
   ];
   for (const input of invalid) {
     assert.throws(() => validateCreateEmployee(input), ValidationError);
@@ -59,7 +59,7 @@ test('employee ID validator only accepts positive integer strings', () => {
 });
 
 test('update validator requires a valid whitelisted field', () => {
-  assert.deepEqual(validateUpdateEmployee({ nama: ' New Name ', ignored: true }), {
+  assert.deepEqual(validateUpdateEmployee({ nama: ' New Name ' }), {
     nama: 'New Name',
   });
   assert.deepEqual(validateUpdateEmployee({ tanggal_masuk: '2026-10-01' }), {
@@ -67,5 +67,9 @@ test('update validator requires a valid whitelisted field', () => {
   });
   assert.throws(() => validateUpdateEmployee({}), ValidationError);
   assert.throws(() => validateUpdateEmployee({ ignored: true }), ValidationError);
+  assert.throws(
+    () => validateUpdateEmployee({ nama: 'New Name', ignored: true }),
+    ValidationError,
+  );
   assert.throws(() => validateUpdateEmployee({ role: null }), ValidationError);
 });

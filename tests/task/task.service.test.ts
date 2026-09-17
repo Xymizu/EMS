@@ -26,6 +26,14 @@ function repository(): TaskRepository {
     async create() { return { status: 'ok', task }; },
     async findAllByProjectId() { return { status: 'ok', tasks: [task] }; },
     async findById() { return task; },
+    async findProjectAccess() {
+      return {
+        projectExists: true,
+        actorEmployeeId: '2',
+        isLead: true,
+        isMember: true,
+      };
+    },
     async update() { return { status: 'ok', task }; },
     async updateStatus() { return { status: 'ok', task }; },
     async delete() { return true; },
@@ -39,18 +47,13 @@ test('Admin and Super Admin can list project tasks', async () => {
   }
 });
 
-test('Staff and user without employee are forbidden before target lookup', async () => {
-  for (const role of ['STAFF', null] as const) {
-    let lookedUp = false;
-    const target = repository();
-    target.findById = async () => {
-      lookedUp = true;
-      return null;
-    };
-    const service = createTaskService(target, roles(role));
-    await assert.rejects(service.findById('1', '999'), ForbiddenError);
-    assert.equal(lookedUp, false);
-  }
+test('Staff can read assigned tasks and user without employee is forbidden', async () => {
+  const staffService = createTaskService(repository(), roles('STAFF'));
+  assert.deepEqual(await staffService.findById('2', '1'), task);
+  assert.deepEqual(await staffService.findAllByProjectId('2', '1'), [task]);
+
+  const service = createTaskService(repository(), roles(null));
+  await assert.rejects(service.findById('1', '999'), ForbiddenError);
 });
 
 test('service maps create and list outcomes', async () => {
@@ -80,6 +83,7 @@ test('service maps missing detail, update outcomes, and delete target', async ()
   const service = createTaskService(target, roles('ADMIN'));
   target.findById = async () => null;
   await assert.rejects(service.findById('1', '1'), TaskNotFoundError);
+  target.findById = async () => task;
   target.update = async () => ({ status: 'task-not-found' });
   await assert.rejects(service.update('1', '1', { namaTask: 'New' }), TaskNotFoundError);
   target.update = async () => ({ status: 'employee-not-found' });

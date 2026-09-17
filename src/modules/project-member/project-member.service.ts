@@ -1,10 +1,14 @@
 import { EmployeeNotFoundError, ForbiddenError } from '../employee/employee.errors.js';
+import {
+  DEFAULT_PAGINATION,
+  type Pagination,
+} from '../../http/pagination.js';
 import type { EmployeeRepository, EmployeeResponse } from '../employee/employee.types.js';
 import { ProjectNotFoundError } from '../project/project.errors.js';
 import {
   ProjectLeadCannotBeRemovedError,
   ProjectMemberAlreadyExistsError,
-  ProjectMemberHasActiveTasksError,
+  ProjectMemberHasTasksError,
   ProjectMemberNotFoundError,
 } from './project-member.errors.js';
 import type { ProjectMemberRepository } from './project-member.types.js';
@@ -12,7 +16,11 @@ import type { ProjectMemberRepository } from './project-member.types.js';
 type RoleRepository = Pick<EmployeeRepository, 'findActorRoleByUserId'>;
 
 export interface ProjectMemberService {
-  findAll(actorUserId: string, projectId: string): Promise<EmployeeResponse[]>;
+  findAll(
+    actorUserId: string,
+    projectId: string,
+    pagination?: Pagination,
+  ): Promise<EmployeeResponse[]>;
   add(
     actorUserId: string,
     projectId: string,
@@ -35,9 +43,9 @@ export function createProjectMemberService(
   }
 
   return {
-    async findAll(actorUserId, projectId) {
+    async findAll(actorUserId, projectId, pagination = DEFAULT_PAGINATION) {
       await assertCanManageMembers(actorUserId);
-      const result = await repository.findAll(projectId);
+      const result = await repository.findAll(projectId, pagination);
       if (result.status === 'project-not-found') throw new ProjectNotFoundError();
       return result.members;
     },
@@ -62,8 +70,8 @@ export function createProjectMemberService(
       if (result.status === 'lead-cannot-be-removed') {
         throw new ProjectLeadCannotBeRemovedError();
       }
-      if (result.status === 'has-active-tasks') {
-        throw new ProjectMemberHasActiveTasksError();
+      if (result.status === 'has-tasks') {
+        throw new ProjectMemberHasTasksError();
       }
     },
   };

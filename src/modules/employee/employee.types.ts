@@ -36,10 +36,11 @@ export interface UpdateEmployeeRecord extends Omit<UpdateEmployeeInput, 'passwor
 export interface EmployeeRepository {
   findActorRoleByUserId(userId: string): Promise<EmployeeRole | null>;
   create(input: CreateEmployeeRecord): Promise<EmployeeResponse>;
-  findAll(): Promise<EmployeeResponse[]>;
+  findAll(pagination: Pagination): Promise<EmployeeResponse[]>;
   findById(employeeId: string): Promise<EmployeeResponse | null>;
   update(
     employeeId: string,
     input: UpdateEmployeeRecord,
   ): Promise<EmployeeResponse | null>;
 }
+import type { Pagination } from '../../http/pagination.js';

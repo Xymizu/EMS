@@ -11,32 +11,44 @@ try {
   }
 }
 
-function requiredEnvironmentVariable(name: string): string {
-  const value = process.env[name]?.trim();
+function requiredEnvironmentVariable(
+  environment: NodeJS.ProcessEnv,
+  name: string,
+): string {
+  const value = environment[name]?.trim();
   if (!value) {
     throw new Error(`Environment variable ${name} is required`);
   }
   return value;
 }
 
-function databasePort(): number {
-  const value = Number(process.env.DB_PORT ?? '3306');
+function databasePort(environment: NodeJS.ProcessEnv): number {
+  const value = Number(environment.DB_PORT ?? '3306');
   if (!Number.isInteger(value) || value < 1 || value > 65_535) {
     throw new Error('DB_PORT must be an integer between 1 and 65535');
   }
   return value;
 }
 
-export function getServerConfig(): ConnectionOptions {
-  const password =
-    process.env.DB_PASSWORD_IS_EMPTY === 'true'
-      ? ''
-      : (process.env.DB_PASSWORD ?? '');
+export function getServerConfig(
+  environment: NodeJS.ProcessEnv = process.env,
+): ConnectionOptions {
+  const allowEmptyPassword = environment.DB_PASSWORD_IS_EMPTY === 'true';
+  if (allowEmptyPassword && environment.NODE_ENV === 'production') {
+    throw new Error('Empty database passwords are forbidden in production');
+  }
+  const password = allowEmptyPassword
+    ? ''
+    : requiredEnvironmentVariable(environment, 'DB_PASSWORD');
+  const user = requiredEnvironmentVariable(environment, 'DB_USER');
+  if (environment.NODE_ENV === 'production' && user.toLowerCase() === 'root') {
+    throw new Error('The application database user must not be root in production');
+  }
 
   return {
-    host: requiredEnvironmentVariable('DB_HOST'),
-    port: databasePort(),
-    user: requiredEnvironmentVariable('DB_USER'),
+    host: requiredEnvironmentVariable(environment, 'DB_HOST'),
+    port: databasePort(environment),
+    user,
     password,
     charset: 'utf8mb4',
     dateStrings: true,
@@ -45,13 +57,44 @@ export function getServerConfig(): ConnectionOptions {
   };
 }
 
-export function getDatabaseName(useTestDatabase = false): string {
-  return requiredEnvironmentVariable(useTestDatabase ? 'TEST_DB_NAME' : 'DB_NAME');
+export function getAdminServerConfig(
+  environment: NodeJS.ProcessEnv = process.env,
+): ConnectionOptions {
+  const applicationConfig = getServerConfig({
+    ...environment,
+    NODE_ENV: environment.NODE_ENV === 'production' ? 'setup' : environment.NODE_ENV,
+  });
+  const applicationUser = requiredEnvironmentVariable(environment, 'DB_USER');
+  const adminUser = environment.DB_ADMIN_USER?.trim() || applicationUser;
+  const adminPassword = environment.DB_ADMIN_PASSWORD ?? String(
+    applicationConfig.password ?? '',
+  );
+  if (environment.NODE_ENV === 'production' && !adminPassword) {
+    throw new Error('DB_ADMIN_PASSWORD is required in production');
+  }
+  return {
+    ...applicationConfig,
+    user: adminUser,
+    password: adminPassword,
+  };
 }
 
-export function getDatabaseConfig(useTestDatabase = false): ConnectionOptions {
+export function getDatabaseName(
+  useTestDatabase = false,
+  environment: NodeJS.ProcessEnv = process.env,
+): string {
+  return requiredEnvironmentVariable(
+    environment,
+    useTestDatabase ? 'TEST_DB_NAME' : 'DB_NAME',
+  );
+}
+
+export function getDatabaseConfig(
+  useTestDatabase = false,
+  environment: NodeJS.ProcessEnv = process.env,
+): ConnectionOptions {
   return {
-    ...getServerConfig(),
-    database: getDatabaseName(useTestDatabase),
+    ...getServerConfig(environment),
+    database: getDatabaseName(useTestDatabase, environment),
   };
 }
